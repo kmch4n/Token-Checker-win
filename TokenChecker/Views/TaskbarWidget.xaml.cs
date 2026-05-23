@@ -26,6 +26,7 @@ public partial class TaskbarWidget : Window
     private static readonly IntPtr HWND_TOPMOST = new(-1);
     private const uint SWP_NOSIZE     = 0x0001;
     private const uint SWP_NOMOVE     = 0x0002;
+    private const uint SWP_NOREDRAW   = 0x0008;
     private const uint SWP_NOACTIVATE = 0x0010;
     private const int  SW_HIDE        = 0;
     private const int  SW_SHOWNA      = 8;
@@ -85,7 +86,7 @@ public partial class TaskbarWidget : Window
         var hwnd = new WindowInteropHelper(this).Handle;
         if (hwnd != IntPtr.Zero)
             SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
-                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOREDRAW);
     }
 
     // ── タスクバー隣接配置 ────────────────────────────────────────────────
