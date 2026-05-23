@@ -2,12 +2,12 @@
 
 タスクバーに Claude Code と Codex の使用率を常時表示する Windows アプリ。
 
-macOS 版 [Token Checker](https://github.com/satonico-bit/Token-Checker) の Windows 移植版。
+macOS 版 [Token Checker](https://github.com/satonico/Token-Checker) の Windows 移植版。
 
 ## 動作要件
 
 - Windows 10 / 11
-- .NET 8.0 以上
+- .NET 8.0 SDK 以上（ビルドに必要）
 - Claude Code CLI（`claude login` 済み）
 - Codex CLI（`npm i -g @openai/codex` 後、`codex login` 済み）
 
@@ -15,8 +15,22 @@ macOS 版 [Token Checker](https://github.com/satonico-bit/Token-Checker) の Win
 
 ## インストール
 
+### 1. .NET 8 SDK をインストール
+
+`dotnet` コマンドが未インストールの場合（`用語 'dotnet' は認識されません` というエラーが出る場合）、先に SDK を入れる。
+
 ```powershell
-git clone https://github.com/satonico-bit/Token-Checker-win.git
+winget install Microsoft.DotNet.SDK.8
+```
+
+インストール後、**PowerShell を一度閉じて開き直す**（PATH を反映させるため）。`dotnet --version` で `8.x.x` が表示されれば成功。
+
+> winget が使えない場合は [.NET 8 SDK の公式ダウンロードページ](https://dotnet.microsoft.com/download/dotnet/8.0) からインストーラーを入手する。
+
+### 2. ビルド
+
+```powershell
+git clone https://github.com/satonico/Token-Checker-win.git
 cd Token-Checker-win
 dotnet build TokenChecker.sln -c Release
 ```
