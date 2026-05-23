@@ -1,0 +1,369 @@
+using System.ComponentModel;
+using System.IO;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
+using TokenChecker.Models;
+using TokenChecker.Providers;
+using TokenChecker.Services;
+using TokenChecker.Utilities;
+
+namespace TokenChecker.ViewModels;
+
+public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
+{
+    private static readonly TimeSpan ClaudeMinimumInterval = TimeSpan.FromMinutes(2);
+
+    private readonly IUsageProvider _claude;
+    private readonly IUsageProvider _codex;
+
+    private UsageSnapshot _snapshot = UsageSnapshot.Empty;
+    private bool _isLoading;
+    private PollingInterval _pollingInterval;
+    private WidgetPlacement _widgetPlacement;
+    private PopupTransparency _popupTransparency;
+    private string? _monitorDeviceName;
+    private bool _startupEnabled;
+    private DateTime _claudeCooldownUntilUtc;
+    private ServiceUsage? _lastClaudeUsage;
+    private bool _claudeWaitingAfterRateLimit;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    public event Action? SnapshotChanged;
+
+    // ── Properties ───────────────────────────────────────────────────────
+
+    public UsageSnapshot Snapshot
+    {
+        get => _snapshot;
+        private set { _snapshot = value; Notify(); SnapshotChanged?.Invoke(); }
+    }
+
+    public bool IsLoading
+    {
+        get => _isLoading;
+        private set { _isLoading = value; Notify(); }
+    }
+
+    public PollingInterval PollingInterval
+    {
+        get => _pollingInterval;
+        set { _pollingInterval = value; Notify(); SaveSettings(); }
+    }
+
+    public WidgetPlacement WidgetPlacement
+    {
+        get => _widgetPlacement;
+        set
+        {
+            if (_widgetPlacement == value) return;
+            _widgetPlacement = value;
+            Notify();
+            SaveSettings();
+        }
+    }
+
+    public PopupTransparency PopupTransparency
+    {
+        get => _popupTransparency;
+        set
+        {
+            if (_popupTransparency == value) return;
+            _popupTransparency = value;
+            Notify();
+            SaveSettings();
+        }
+    }
+
+    public string? MonitorDeviceName
+    {
+        get => _monitorDeviceName;
+        set
+        {
+            if (_monitorDeviceName == value) return;
+            _monitorDeviceName = value;
+            Notify();
+            SaveSettings();
+        }
+    }
+
+    public bool StartupEnabled
+    {
+        get => _startupEnabled;
+        set
+        {
+            _startupEnabled = value;
+            Notify();
+            try { StartupManager.IsEnabled = value; } catch { }
+        }
+    }
+
+    public DateTime? ClaudeNextRetryAt =>
+        Snapshot.ClaudeError?.Kind == DomainErrorKind.AnthropicRateLimited &&
+        _claudeCooldownUntilUtc > DateTime.UtcNow
+            ? _claudeCooldownUntilUtc.ToLocalTime()
+            : null;
+
+    public PollingInterval[] AllIntervals { get; } = PollingIntervalExtensions.All;
+
+    // ── Init ─────────────────────────────────────────────────────────────
+
+    public UsageViewModel(IUsageProvider? claude = null, IUsageProvider? codex = null)
+    {
+        _claude          = claude ?? new ClaudeUsageProvider();
+        _codex           = codex  ?? new CodexUsageProvider();
+        _pollingInterval = LoadSettings();
+        _widgetPlacement = LoadWidgetPlacement();
+        _popupTransparency = LoadPopupTransparency();
+        _monitorDeviceName = LoadMonitorDeviceName();
+        _startupEnabled  = StartupManager.IsEnabled;
+        _lastClaudeUsage = LoadClaudeUsageCache();
+        var claudePollingState = LoadClaudePollingState();
+        _claudeCooldownUntilUtc = claudePollingState?.NextRequestUtc ?? DateTime.MinValue;
+        _claudeWaitingAfterRateLimit = claudePollingState?.WasRateLimited == true;
+        if (!_claudeWaitingAfterRateLimit &&
+            _claudeCooldownUntilUtc > DateTime.UtcNow.Add(ClaudeMinimumInterval))
+            _claudeCooldownUntilUtc = DateTime.UtcNow.Add(ClaudeMinimumInterval);
+        var waitingForClaudeRetry = _claudeWaitingAfterRateLimit &&
+                                    _claudeCooldownUntilUtc > DateTime.UtcNow;
+        if (_lastClaudeUsage != null || waitingForClaudeRetry)
+        {
+            _snapshot = new UsageSnapshot
+            {
+                ClaudeUsage = _lastClaudeUsage,
+                ClaudeError = waitingForClaudeRetry ? DomainError.AnthropicRateLimited(null) : null,
+                FetchedAt = DateTime.MinValue,
+            };
+        }
+    }
+
+    // ── Polling ──────────────────────────────────────────────────────────
+
+    public async Task RunPollingLoopAsync(CancellationToken ct)
+    {
+        await RefreshAsync(ct);
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(PollingInterval.ToTimeSpan(), ct);
+                await RefreshAsync(ct);
+            }
+            catch (OperationCanceledException) { break; }
+        }
+    }
+
+    public async Task RefreshAsync(CancellationToken ct = default)
+    {
+        IsLoading = true;
+        try
+        {
+            var fetchClaude = DateTime.UtcNow >= _claudeCooldownUntilUtc;
+            var claudeTask = fetchClaude
+                ? FetchSafe(_claude, ct)
+                : Task.FromResult((Snapshot.ClaudeUsage, Snapshot.ClaudeError));
+            var codexTask  = FetchSafe(_codex,  ct);
+            await Task.WhenAll(claudeTask, codexTask);
+
+            var (cu, ce) = await claudeTask;
+            var (xu, xe) = await codexTask;
+            if (fetchClaude)
+            {
+                if (cu != null)
+                {
+                    _claudeWaitingAfterRateLimit = false;
+                    _claudeCooldownUntilUtc = DateTime.UtcNow.Add(ClaudeMinimumInterval);
+                    SaveClaudePollingState();
+                }
+                else if (ce?.Kind == DomainErrorKind.AnthropicRateLimited)
+                {
+                    _claudeWaitingAfterRateLimit = true;
+                    var serverDelay = ce.RetryAfterSeconds is > 0
+                        ? TimeSpan.FromSeconds(ce.RetryAfterSeconds.Value)
+                        : TimeSpan.Zero;
+                    _claudeCooldownUntilUtc = DateTime.UtcNow.Add(
+                        serverDelay > ClaudeMinimumInterval ? serverDelay : ClaudeMinimumInterval);
+                    SaveClaudePollingState();
+                }
+                else
+                {
+                    _claudeWaitingAfterRateLimit = false;
+                    _claudeCooldownUntilUtc = DateTime.MinValue;
+                    SaveClaudePollingState();
+                }
+            }
+            if (cu != null)
+            {
+                _lastClaudeUsage = cu;
+                SaveClaudeUsageCache(cu);
+            }
+            else if (ce?.Kind is DomainErrorKind.AnthropicRateLimited or DomainErrorKind.Network)
+            {
+                cu = _lastClaudeUsage;
+            }
+
+            Snapshot = new UsageSnapshot
+            {
+                ClaudeUsage = cu, ClaudeError = ce,
+                CodexUsage  = xu, CodexError  = xe,
+                FetchedAt   = DateTime.Now,
+            };
+        }
+        finally { IsLoading = false; }
+    }
+
+    // ── Internals ────────────────────────────────────────────────────────
+
+    private static async Task<(ServiceUsage?, DomainError?)> FetchSafe(
+        IUsageProvider provider, CancellationToken ct)
+    {
+        try   { return (await provider.FetchAsync(ct), null); }
+        catch (DomainError e)  { return (null, e); }
+        catch (Exception   e)  { return (null, DomainError.Network(e.Message)); }
+    }
+
+    private void Notify([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    // ── Settings (JSON file in %AppData%\TokenChecker) ───────────────────
+
+    private static readonly string SettingsPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "TokenChecker", "settings.json");
+    private static readonly string ClaudeUsageCachePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "TokenChecker", "claude-usage-cache.json");
+    private static readonly string ClaudePollingStatePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "TokenChecker", "claude-polling-state.json");
+
+    private static PollingInterval LoadSettings()
+    {
+        try
+        {
+            if (!File.Exists(SettingsPath)) return PollingIntervalExtensions.Default;
+            var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+            if (doc.RootElement.TryGetProperty("pollingInterval", out var el) &&
+                el.TryGetInt32(out var raw) &&
+                Enum.IsDefined(typeof(PollingInterval), raw))
+                return raw < (int)PollingInterval.Min2 ? PollingInterval.Min2 : (PollingInterval)raw;
+        }
+        catch { }
+        return PollingIntervalExtensions.Default;
+    }
+
+    private static WidgetPlacement LoadWidgetPlacement()
+    {
+        try
+        {
+            if (!File.Exists(SettingsPath)) return WidgetPlacement.Right;
+            var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+            if (doc.RootElement.TryGetProperty("widgetPlacement", out var el) &&
+                Enum.TryParse<WidgetPlacement>(el.GetString(), out var placement))
+                return placement;
+        }
+        catch { }
+        return WidgetPlacement.Right;
+    }
+
+    private static PopupTransparency LoadPopupTransparency()
+    {
+        try
+        {
+            if (!File.Exists(SettingsPath)) return PopupTransparencyExtensions.Default;
+            var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+            if (doc.RootElement.TryGetProperty("popupTransparency", out var el) &&
+                Enum.TryParse<PopupTransparency>(el.GetString(), out var transparency))
+                return transparency;
+        }
+        catch { }
+        return PopupTransparencyExtensions.Default;
+    }
+
+    private static string? LoadMonitorDeviceName()
+    {
+        try
+        {
+            if (!File.Exists(SettingsPath)) return null;
+            var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+            if (doc.RootElement.TryGetProperty("monitorDeviceName", out var el))
+                return el.GetString();
+        }
+        catch { }
+        return null;
+    }
+
+    private void SaveSettings()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+            File.WriteAllText(SettingsPath,
+                JsonSerializer.Serialize(new
+                {
+                    pollingInterval = (int)_pollingInterval,
+                    widgetPlacement = _widgetPlacement.ToString(),
+                    popupTransparency = _popupTransparency.ToString(),
+                    monitorDeviceName = _monitorDeviceName,
+                }));
+        }
+        catch { }
+    }
+
+    private static ServiceUsage? LoadClaudeUsageCache()
+    {
+        try
+        {
+            return File.Exists(ClaudeUsageCachePath)
+                ? JsonSerializer.Deserialize<ServiceUsage>(File.ReadAllText(ClaudeUsageCachePath))
+                : null;
+        }
+        catch { return null; }
+    }
+
+    private static void SaveClaudeUsageCache(ServiceUsage usage)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(ClaudeUsageCachePath)!);
+            File.WriteAllText(ClaudeUsageCachePath, JsonSerializer.Serialize(usage));
+        }
+        catch { }
+    }
+
+    private static ClaudePollingState? LoadClaudePollingState()
+    {
+        try
+        {
+            return File.Exists(ClaudePollingStatePath)
+                ? JsonSerializer.Deserialize<ClaudePollingState>(File.ReadAllText(ClaudePollingStatePath))
+                : null;
+        }
+        catch { return null; }
+    }
+
+    private void SaveClaudePollingState()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(ClaudePollingStatePath)!);
+            File.WriteAllText(ClaudePollingStatePath, JsonSerializer.Serialize(
+                new ClaudePollingState
+                {
+                    NextRequestUtc = _claudeCooldownUntilUtc,
+                    WasRateLimited = _claudeWaitingAfterRateLimit,
+                }));
+        }
+        catch { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_codex is IAsyncDisposable d) await d.DisposeAsync();
+    }
+
+    private sealed class ClaudePollingState
+    {
+        public DateTime NextRequestUtc { get; init; }
+        public bool WasRateLimited { get; init; }
+    }
+}
