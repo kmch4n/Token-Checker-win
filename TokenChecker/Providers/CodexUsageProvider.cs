@@ -41,11 +41,20 @@ public sealed class CodexUsageProvider : IUsageProvider, IAsyncDisposable
 
             // stderr に手掛かりがあれば（古い codex / 認証切れ等）エラーに添える。
             var stderr = _client.LastStderr;
-            _lastError = string.IsNullOrWhiteSpace(stderr)
+            // 認証失効は分かりやすいメッセージを保持し、stderr で上書きしない。
+            _lastError = (string.IsNullOrWhiteSpace(stderr) || e.Kind == DomainErrorKind.CodexUnauthorized)
                 ? e
                 : DomainError.CodexRpcError($"{e.Message} / {stderr}");
             throw _lastError;
         }
+    }
+
+    /// <summary>手動更新時にバックオフを解除し、即座に再取得できるようにする。</summary>
+    public void ResetBackoff()
+    {
+        _consecutiveFailures = 0;
+        _nextAttemptUtc = DateTime.MinValue;
+        _lastError = null;
     }
 
     private async Task<ServiceUsage> FetchOnceAsync(CancellationToken ct)

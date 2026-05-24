@@ -122,7 +122,7 @@ public partial class App : System.Windows.Application
         var snap = _vm.Snapshot;
         if (snap.ClaudeError?.Kind == DomainErrorKind.TokenMissing)
             new LoginWindow("Claude Code", "claude auth login", _vm, new WindowsTokenSource()).ShowDialog();
-        if (snap.CodexError?.Kind == DomainErrorKind.CodexRpcError)
+        if (snap.CodexError?.Kind is DomainErrorKind.CodexRpcError or DomainErrorKind.CodexUnauthorized)
             new LoginWindow("Codex", "codex login", _vm).ShowDialog();
     }
 
@@ -224,7 +224,7 @@ public partial class App : System.Windows.Application
     {
         var menu = new ContextMenuStrip();
         menu.Items.Add("詳細を表示/非表示",   null, (_, _) => Dispatcher.Invoke(TogglePopup));
-        menu.Items.Add("今すぐ更新",           null, (_, _) => _ = _vm!.RefreshAsync());
+        menu.Items.Add("今すぐ更新",           null, (_, _) => _ = _vm!.RefreshAsync(force: true));
         menu.Items.Add("モニター切替",         null, (_, _) => Dispatcher.Invoke(CycleMonitor));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("終了",                 null, (_, _) => Dispatcher.Invoke(() => Shutdown()));

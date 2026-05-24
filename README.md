@@ -18,6 +18,13 @@ macOS 版 [Token Checker](https://github.com/satonico/Token-Checker) の Windows
 
 [Releases](https://github.com/satonico/Token-Checker-win/releases) から `TokenChecker.exe` をダウンロードしてダブルクリックするだけ。.NET ランタイムを同梱しているため、**.NET のインストールは不要**。
 
+> **「Windows によって PC が保護されました」と表示された場合**
+> 署名のないアプリをネットからダウンロードすると Windows SmartScreen が警告を出します（マルウェアという意味ではありません）。次のいずれかで起動できます。
+> - 警告画面の「**詳細情報**」→「**実行**」をクリック
+> - または exe を右クリック →「プロパティ」→「**ブロックの解除**」にチェック → OK
+>
+> 警告を一切出したくない場合は、方法B でソースから自分でビルドした exe を使う（自分でビルドした exe には警告が出ない）。
+
 ### 方法B: ソースからビルド
 
 開発者向け。先に [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) が必要（`winget install Microsoft.DotNet.SDK.8` でも可。インストール後は PowerShell を開き直す）。

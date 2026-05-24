@@ -232,7 +232,7 @@ public partial class UsagePopupWindow : Window
     // ── Event handlers ───────────────────────────────────────────────────
 
     private async void Refresh_Click(object sender, RoutedEventArgs e)
-        => await _vm.RefreshAsync();
+        => await _vm.RefreshAsync(force: true);
 
     private void Close_Click(object sender, RoutedEventArgs e)
         => Hide();

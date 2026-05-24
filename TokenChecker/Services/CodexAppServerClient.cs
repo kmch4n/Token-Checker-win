@@ -169,6 +169,13 @@ public sealed class CodexAppServerClient : IAsyncDisposable
         catch { }
     }
 
+    // codex app-server が返す rate limits 取得エラーが認証失効(401/token_invalidated)かを判定する。
+    private static bool IsAuthError(string message) =>
+        message.Contains("token_invalidated", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("401") ||
+        message.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase) ||
+        message.Contains("invalidated", StringComparison.OrdinalIgnoreCase);
+
     private void ProcessLine(string line)
     {
         try
@@ -184,12 +191,15 @@ public sealed class CodexAppServerClient : IAsyncDisposable
             {
                 var msg = err.TryGetProperty("message", out var m)
                     ? m.GetString() ?? "RPC error" : "RPC error";
+                var error = IsAuthError(msg)
+                    ? DomainError.CodexUnauthorized()
+                    : DomainError.CodexRpcError(msg);
                 lock (_pendingLock)
                 {
                     if (_pending.TryGetValue(id, out var tcs))
                     {
                         _pending.Remove(id);
-                        tcs.TrySetException(DomainError.CodexRpcError(msg));
+                        tcs.TrySetException(error);
                     }
                 }
                 return;

@@ -77,7 +77,7 @@ public partial class LoginWindow : Window
     private void Done_Click(object sender, RoutedEventArgs e)
     {
         _pollCts?.Cancel();
-        _ = _vm.RefreshAsync();
+        _ = _vm.RefreshAsync(force: true);
         Close();
     }
 
@@ -108,7 +108,7 @@ public partial class LoginWindow : Window
                     await Task.Delay(1400, ct);
                     Dispatcher.Invoke(() =>
                     {
-                        _ = _vm.RefreshAsync();
+                        _ = _vm.RefreshAsync(force: true);
                         Close();
                     });
                     return;

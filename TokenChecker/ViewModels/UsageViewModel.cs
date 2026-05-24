@@ -168,11 +168,17 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
         }
     }
 
-    public async Task RefreshAsync(CancellationToken ct = default)
+    public async Task RefreshAsync(CancellationToken ct = default, bool force = false)
     {
         // ポーリングと手動更新が同時に走り _snapshot / _lastClaudeUsage を競合させないよう直列化する。
         await _refreshGate.WaitAsync(ct);
-        try { await RefreshCoreAsync(ct); }
+        try
+        {
+            // 手動更新（再ログイン直後など）は Codex のバックオフを解除して即リトライする。
+            if (force && _codex is CodexUsageProvider codex)
+                codex.ResetBackoff();
+            await RefreshCoreAsync(ct);
+        }
         finally { _refreshGate.Release(); }
     }
 
@@ -260,6 +266,7 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
     private static bool IsTransient(DomainErrorKind kind) => kind is not (
         DomainErrorKind.TokenMissing or
         DomainErrorKind.AnthropicUnauthorized or
+        DomainErrorKind.CodexUnauthorized or
         DomainErrorKind.CodexNotFound);
 
     private void Notify([CallerMemberName] string? name = null)

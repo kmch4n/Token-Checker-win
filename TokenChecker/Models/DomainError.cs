@@ -9,6 +9,7 @@ public enum DomainErrorKind
     CodexNotFound,
     CodexProcessExited,
     CodexRpcError,
+    CodexUnauthorized,
     Decoding,
     Timeout,
     Network,
@@ -48,6 +49,9 @@ public sealed class DomainError : Exception
 
     public static DomainError CodexRpcError(string msg) => new(DomainErrorKind.CodexRpcError,
         $"Codex RPC エラー: {msg}");
+
+    public static DomainError CodexUnauthorized() => new(DomainErrorKind.CodexUnauthorized,
+        "Codex の認証が切れています。`codex login` で再ログインしてください。");
 
     public static DomainError Decoding(string detail) => new(DomainErrorKind.Decoding,
         $"レスポンスのデコードに失敗: {detail}");
