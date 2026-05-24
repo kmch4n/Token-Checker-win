@@ -88,6 +88,12 @@ public partial class App : System.Windows.Application
             };
             _tray.MouseClick += OnTrayClick;
 
+            _tray.ShowBalloonTip(
+                timeout: 4000,
+                tipTitle: "Token Checker 起動中",
+                tipText: "タスクバー右端のウィジェットをクリックすると詳細が開きます。",
+                tipIcon: ToolTipIcon.Info);
+
             _vm.SnapshotChanged += UpdateTrayIcon;
 
             // 初回フェッチ完了後に一度だけ、未ログインのサービスがあればログイン画面を自動表示する。
