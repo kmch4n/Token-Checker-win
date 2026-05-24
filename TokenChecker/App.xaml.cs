@@ -96,13 +96,19 @@ public partial class App : System.Windows.Application
 
             _vm.SnapshotChanged += UpdateTrayIcon;
 
-            // 初回フェッチ完了後に一度だけ、未ログインのサービスがあればログイン画面を自動表示する。
+            // 初回フェッチ完了後に一度だけ、ログイン確認→ポップアップ自動表示を行う。
             var loginChecked = false;
             _vm.SnapshotChanged += () =>
             {
                 if (loginChecked || _vm!.Snapshot.FetchedAt == DateTime.MinValue) return;
                 loginChecked = true;
-                Dispatcher.BeginInvoke(PromptLoginIfNeeded);
+                Dispatcher.BeginInvoke(() =>
+                {
+                    PromptLoginIfNeeded();
+                    PositionPopup();
+                    _popup!.Show();
+                    _popup.Activate();
+                });
             };
 
             _pollCts = new CancellationTokenSource();
