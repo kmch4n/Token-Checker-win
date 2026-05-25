@@ -79,7 +79,9 @@ public partial class LoginWindow : Window
     {
         try
         {
-            Process.Start(new ProcessStartInfo("cmd.exe", $"/k wsl -- {_cliCommand}")
+            // bash -il で .bashrc + .profile の両方を読み込み、claude の PATH を有効にする
+            // シングルクォートは cmd.exe に解釈されないため wsl 側へそのまま渡る
+            Process.Start(new ProcessStartInfo("cmd.exe", $"/k wsl -- bash -il -c '{_cliCommand}'")
             {
                 UseShellExecute = true,
             });
