@@ -20,11 +20,12 @@ Remote facts are drift-prone and must be verified with `git remote -v` before re
 
 ## Last validation
 
-The UsageBeacon rename and documentation changes were validated on 2026-07-18:
+The Claude usage reliability changes were validated on 2026-07-18:
 
-- `dotnet test UsageBeacon.sln -c Debug`: 2 passed, 0 failed.
+- `dotnet test UsageBeacon.sln -c Debug`: 17 passed, 0 failed.
 - `dotnet build UsageBeacon.sln -c Debug`: 0 warnings, 0 errors.
 - `dotnet build UsageBeacon.sln -c Release`: 0 warnings, 0 errors when built to an alternate output path.
-- GitHub Issue Form YAML parsed successfully.
+- The status line integration test executed the embedded PowerShell bridge, parsed synthetic native rate-limit data, and verified that session paths were not persisted.
+- A manual smoke test of the alternate Release build observed Claude usage retrieval after enabling the Claude Code integration.
 
 The ordinary Release output path was locked by a running UsageBeacon process during the final check. When this occurs, close the running application with user awareness or use an alternate `BaseOutputPath`; do not treat the file lock as a compilation failure.

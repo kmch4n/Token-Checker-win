@@ -44,3 +44,12 @@
 - Reason: Decisions and constraints must survive tool changes, new sessions, and contributor handoffs.
 - Consequences: Every change that introduces or invalidates a non-obvious constraint must update `.memory/` in the same work.
 - Evidence: [`.memory/README.md`](README.md) and [`.codex/AGENTS.md`](../.codex/AGENTS.md).
+
+## D-006: Prefer Claude Code native rate-limit data
+
+- Date: 2026-07-18
+- Status: Active
+- Decision: Prefer the `rate_limits` values delivered to Claude Code status line commands, and retain Anthropic's undocumented OAuth usage endpoint only as a low-frequency fallback.
+- Reason: The OAuth usage endpoint applies strict request limits and can remain unavailable while first-party Claude surfaces still display usage. Native rate-limit data arrives with normal Claude Code responses and requires no additional usage request.
+- Consequences: Status line integration must be opt-in, preserve and forward an existing command, discard unrelated session metadata, and restore settings only when doing so cannot overwrite later user changes. OAuth fallback must honor server cooldowns and refresh expired access tokens without rewriting credential storage.
+- Evidence: [`docs/CLAUDE_USAGE.md`](../docs/CLAUDE_USAGE.md), [`UsageBeacon/Services/ClaudeStatusLineIntegration.cs`](../UsageBeacon/Services/ClaudeStatusLineIntegration.cs), and [`UsageBeacon/ViewModels/UsageViewModel.cs`](../UsageBeacon/ViewModels/UsageViewModel.cs).

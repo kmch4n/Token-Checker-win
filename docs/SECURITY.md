@@ -12,4 +12,6 @@ Use GitHub private vulnerability reporting for this repository when available. I
 
 Include the affected version, reproduction steps, expected impact, and any suggested mitigation. Do not include real Claude or Codex credentials in the report.
 
+The optional Claude Code integration changes the local `~/.claude/settings.json` status line command after explicit user confirmation. It preserves the previous status line configuration locally and forwards input to that command. Reports about this integration must redact status line input because it can contain local paths and session metadata, even though UsageBeacon persists only rate-limit values and timestamps.
+
 UsageBeacon is an independent, unofficial fork. Reports that affect the upstream project should also be coordinated responsibly with the upstream maintainer when appropriate.

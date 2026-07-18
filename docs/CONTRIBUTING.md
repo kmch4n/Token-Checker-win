@@ -39,6 +39,8 @@ dotnet run --project UsageBeacon\UsageBeacon.csproj
 
 Add behavior-based xUnit tests under `UsageBeacon.Tests`. For platform or UI changes, also verify taskbar placement, popup behavior, refresh intervals, startup registration, and missing, valid, and expired credential states as applicable.
 
+Claude retrieval changes should cover OAuth success and refresh, HTTP 401 and 429 responses, `Retry-After` handling, cache freshness, native status line input, and preservation of an existing Claude Code status line command. Tests and reports must use synthetic credentials and paths.
+
 ## Pull requests
 
 Keep each pull request focused. Describe the user-visible effect, fallback behavior, security impact, and verification performed. Include screenshots for visible UI changes.

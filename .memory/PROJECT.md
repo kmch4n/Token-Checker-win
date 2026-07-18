@@ -18,6 +18,7 @@ Evidence: [`README.md`](../README.md), [`docs/NOTICE.md`](../docs/NOTICE.md), an
 - Public documentation other than `README.md` belongs under `docs/`.
 - GitHub Issue Forms and pull request templates belong under `.github/`.
 - API and Windows integration code must remain outside views and follow the existing `Providers/`, `Services/`, and `Utilities/` boundaries.
+- Claude usage retrieval prefers native Claude Code status line data and uses the OAuth usage endpoint as a rate-limited fallback.
 
 ## Language conventions
 
@@ -28,6 +29,7 @@ Evidence: [`README.md`](../README.md), [`docs/NOTICE.md`](../docs/NOTICE.md), an
 
 - Never commit Claude or Codex credentials, tokens, local caches, or machine-specific paths.
 - Credential discovery, WSL integration, startup registration, local cache handling, command execution, and network clients are security-sensitive.
+- Claude status line integration is opt-in, must preserve an existing command, and must persist only rate-limit values and observation metadata.
 - Public bug reports must direct vulnerability reports to the repository security policy.
 
 Evidence: [`docs/SECURITY.md`](../docs/SECURITY.md) and [`.github/ISSUE_TEMPLATE/config.yml`](../.github/ISSUE_TEMPLATE/config.yml).

@@ -9,6 +9,7 @@ UsageBeacon is a lightweight Windows app that keeps Claude Code and Codex usage 
 
 - Taskbar widget for Claude Code and Codex usage
 - Detailed five-hour and weekly usage windows
+- Optional Claude Code native usage integration without extra usage API requests
 - Reset-time countdowns and manual refresh
 - Windows and WSL Claude credential discovery
 - Codex CLI discovery, including nvm-windows installations
@@ -67,13 +68,16 @@ dotnet publish UsageBeacon\UsageBeacon.csproj -c Release -r win-x64 --self-conta
 3. Click the taskbar widget to open the detailed usage popup.
 4. Use the tray menu for refresh, monitor switching, and exit controls.
 
+For more reliable Claude updates, select the integration button next to Claude Code. UsageBeacon then receives native rate-limit values from Claude Code while preserving an existing status line command. See [Claude usage retrieval](docs/CLAUDE_USAGE.md) for behavior, privacy, and fallback details.
+
 ### Claude Code in WSL
 
 If Claude Code is installed only inside WSL, open the login window in UsageBeacon and select **WSL**. The app launches `claude auth login` in an interactive WSL shell and then discovers the credential file from the WSL filesystem.
 
 ## Data and privacy
 
-- Claude credentials are read locally from Windows Credential Manager, known Claude credential files, or WSL. The access token is sent only to Anthropic's usage endpoint.
+- Claude credentials are read locally from Windows Credential Manager, known Claude credential files, or WSL. OAuth credentials are sent only to Anthropic's token and usage endpoints as required for refresh and retrieval.
+- The optional Claude Code bridge stores only rate-limit percentages, reset times, source, and observation time. Other status line session metadata is discarded.
 - Codex usage is read through the locally installed `codex app-server`; UsageBeacon does not parse or store the Codex access token.
 - Settings and usage caches are stored under `%APPDATA%\UsageBeacon`.
 - UsageBeacon does not include telemetry or analytics.
@@ -82,7 +86,7 @@ When upgrading from Token Checker for Windows, UsageBeacon attempts to migrate `
 
 ## Uninstall
 
-Exit UsageBeacon, then remove its startup entries and local data if desired:
+Disable Claude Code integration from the popup if it is enabled, then exit UsageBeacon and remove its startup entries and local data if desired:
 
 ```powershell
 Stop-Process -Name UsageBeacon -Force -ErrorAction SilentlyContinue
@@ -96,7 +100,7 @@ Delete the downloaded executable or cloned repository afterward. Claude and Code
 
 ## Development
 
-Contributions are welcome. See [CONTRIBUTING](docs/CONTRIBUTING.md) for the development workflow, [SECURITY](docs/SECURITY.md) for vulnerability reporting, and [CHANGELOG](docs/CHANGELOG.md) for notable changes.
+Contributions are welcome. See [CONTRIBUTING](docs/CONTRIBUTING.md) for the development workflow, [Claude usage retrieval](docs/CLAUDE_USAGE.md) for the Claude data-source design, [SECURITY](docs/SECURITY.md) for vulnerability reporting, and [CHANGELOG](docs/CHANGELOG.md) for notable changes.
 
 ## Attribution
 
