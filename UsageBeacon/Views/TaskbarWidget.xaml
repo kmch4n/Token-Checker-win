@@ -12,15 +12,15 @@
         WindowStartupLocation="Manual">
 
     <!--
-        タスクバーと同じ高さで隣接して表示。
-        AllowsTransparency=True で完全透明 → タスクバーに溶け込んで見える。
+        The widget sits next to the taskbar at the same height.
+        AllowsTransparency keeps the idle surface visually integrated with the taskbar.
     -->
     <Border x:Name="Root"
             CornerRadius="6"
             Cursor="Hand"
             MouseLeftButtonDown="Root_Click">
 
-        <!-- 普段は透明でタスクバーに溶け込み、マウスオーバー時のみ薄く強調 -->
+        <!-- Remain transparent until hover so the widget blends into the taskbar. -->
         <Border.Style>
             <Style TargetType="Border">
                 <Setter Property="Background" Value="Transparent"/>
@@ -53,7 +53,7 @@
                            VerticalAlignment="Center"/>
             </StackPanel>
 
-            <!-- 区切り線 -->
+            <!-- Divider -->
             <Rectangle Width="1" Height="16"
                        Fill="#40FFFFFF"
                        Margin="6,0"/>

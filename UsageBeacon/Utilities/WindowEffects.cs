@@ -25,8 +25,7 @@ public static class WindowEffects
         IntPtr hwnd, ref WindowCompositionAttributeData data);
 
     /// <summary>
-    /// DWM アクリルバックドロップを適用する。
-    /// AllowsTransparency=False の通常 HWND で動作する（レイヤードウィンドウ不要）。
+    /// Applies a DWM acrylic backdrop to a normal, non-layered HWND.
     /// </summary>
     public static void Apply(Window window, bool lightMode = false)
     {
@@ -37,20 +36,20 @@ public static class WindowEffects
             return;
         }
 
-        // クライアント領域全体を DWM フレームに拡張 → DWMSBT_TRANSIENTWINDOW が機能するようになる
+        // Extend the DWM frame across the client area so DWMSBT_TRANSIENTWINDOW can work.
         TryExtendFrame(hwnd);
 
-        // Windows 11: 角丸
+        // Windows 11 rounded corners.
         TryDwm(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUNDSMALL);
 
-        // Windows 11 22H2+: Acrylic システムバックドロップ
+        // Windows 11 22H2+ acrylic system backdrop.
         TryDwm(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, DWMSBT_TRANSIENTWINDOW);
 
-        // Windows 10 fallback: 軽い半透明ブラー
+        // Windows 10 fallback with light translucent blur.
         uint gradient = lightMode ? 0x28_F0_F0_F0u : 0x28_10_10_10u;
         TryWin10Acrylic(hwnd, gradient);
 
-        // WPF 背景を透明にして DWM アクリルを見せる
+        // Keep the WPF background transparent so the DWM backdrop remains visible.
         window.Background = new SolidColorBrush(MediaColor.FromArgb(1, 0, 0, 0));
     }
 

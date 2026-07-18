@@ -8,8 +8,8 @@ using UsageBeacon.Models;
 namespace UsageBeacon.Services;
 
 /// <summary>
-/// `codex app-server` を spawn して JSON-RPC で通信する。
-/// macOS 版の CodexAppServerClient と同じ設計をWindows向けに移植。
+/// Spawns `codex app-server` and communicates through JSON-RPC.
+/// Ports the macOS client design to Windows.
 /// </summary>
 public sealed class CodexAppServerClient : IAsyncDisposable
 {
@@ -24,7 +24,7 @@ public sealed class CodexAppServerClient : IAsyncDisposable
     private volatile int _generation;
     private volatile string _lastStderr = "";
 
-    /// <summary>codex app-server が直近に stderr へ出力した非空行（診断用）。</summary>
+    /// <summary>Most recent non-empty stderr line from codex app-server.</summary>
     public string LastStderr => _lastStderr;
 
     private readonly object _writeLock = new();
@@ -54,7 +54,7 @@ public sealed class CodexAppServerClient : IAsyncDisposable
         {
             if (_started && _process?.HasExited == false) return;
 
-            // 前回のプロセスが残っていればクリーンアップ
+            // Clean up a process left by the previous generation.
             if (_started)
             {
                 _readCts?.Cancel();
@@ -73,8 +73,8 @@ public sealed class CodexAppServerClient : IAsyncDisposable
             _process.Exited += (_, _) => { if (myGen == _generation) FailAll(DomainError.CodexProcessExited()); };
             _process.Start();
 
-            // UTF-8 NoBOM で書き込み（codex は UTF-8 を期待する）。
-            // JSON-RPC は行区切りのため、改行は LF 固定にする（CRLF だと解釈側で崩れる環境がある）。
+            // Codex expects UTF-8 without a BOM.
+            // JSON-RPC uses line framing, so force LF to avoid CRLF parsing issues.
             _stdin = new StreamWriter(
                 _process.StandardInput.BaseStream,
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
@@ -87,10 +87,10 @@ public sealed class CodexAppServerClient : IAsyncDisposable
             var stdout    = _process.StandardOutput;
             var stderr    = _process.StandardError;
             _ = Task.Run(() => ReadLoopAsync(stdout, myGen, readToken), readToken);
-            // stderr を読み捨てないとパイプバッファが詰まり子プロセスがブロックしうる。
+            // Drain stderr so a full pipe cannot block the child process.
             _ = Task.Run(() => DrainStderrAsync(stderr, readToken), readToken);
 
-            // initialize ハンドシェイク
+            // Initialize handshake.
             _ = await SendRequestAsync("initialize", new
             {
                 clientInfo   = new { name = "usage-beacon", version = "0.1.0" },
@@ -122,8 +122,7 @@ public sealed class CodexAppServerClient : IAsyncDisposable
 
     public void Stop()
     {
-        // 世代を進めて、停止対象プロセスの Exited / 読み取りループが
-        // 後続世代の pending を巻き込んで失敗させないようにする。
+        // Advance the generation so callbacks from the stopped process cannot fail later requests.
         Interlocked.Increment(ref _generation);
         _readCts?.Cancel();
         try { if (_process?.HasExited == false) _process.Kill(entireProcessTree: true); } catch { }
@@ -169,7 +168,7 @@ public sealed class CodexAppServerClient : IAsyncDisposable
         catch { }
     }
 
-    // codex app-server が返す rate limits 取得エラーが認証失効(401/token_invalidated)かを判定する。
+    // Detect authentication expiry in rate-limit errors returned by codex app-server.
     private static bool IsAuthError(string message) =>
         message.Contains("token_invalidated", StringComparison.OrdinalIgnoreCase) ||
         message.Contains("401") ||
@@ -186,7 +185,7 @@ public sealed class CodexAppServerClient : IAsyncDisposable
 
             var id = idEl.GetInt32();
 
-            // JSON-RPC エラーレスポンスを正しく処理する
+            // Handle JSON-RPC error responses before decoding a result.
             if (doc.RootElement.TryGetProperty("error", out var err))
             {
                 var msg = err.TryGetProperty("message", out var m)
@@ -230,7 +229,7 @@ public sealed class CodexAppServerClient : IAsyncDisposable
         var json = JsonSerializer.Serialize(
             new { jsonrpc = "2.0", id, method, @params }, JsonOpts);
 
-        // Stop() で _stdin が null 化される競合に備えてローカルにスナップショットして検査する。
+        // Snapshot stdin locally because Stop can clear the field concurrently.
         var stdin = _stdin;
         if (stdin == null)
         {
@@ -278,12 +277,12 @@ public sealed class CodexAppServerClient : IAsyncDisposable
     {
         string fileName, args;
 
-        // .cmd / .bat は cmd.exe 経由で実行する
+        // Run .cmd and .bat launchers through cmd.exe.
         if (exe.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) ||
             exe.EndsWith(".bat", StringComparison.OrdinalIgnoreCase))
         {
-            // cmd.exe 経由のため、ダブルクォートで括っても特別扱いが残る文字を拒否する。
-            // 引用符内でも展開される '%'（環境変数）と引用符自身 '"' が該当。
+            // Reject characters that retain special meaning inside cmd.exe quotes.
+            // Percent expands environment variables and a quote terminates the quoted path.
             if (exe.IndexOfAny(['"', '%']) >= 0)
                 throw new ArgumentException($"Executable path contains an unsafe character: {exe}");
             fileName = Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe";
@@ -306,7 +305,7 @@ public sealed class CodexAppServerClient : IAsyncDisposable
             StandardErrorEncoding    = Encoding.UTF8,
         };
 
-        // 子プロセスに渡す最小限の環境変数
+        // Pass only the environment variables required by the child process.
         psi.EnvironmentVariables.Clear();
         var keep = new[]
         {
@@ -329,8 +328,8 @@ public sealed class CodexAppServerClient : IAsyncDisposable
         foreach (var c in _candidates)
             if (File.Exists(c)) return c;
 
-        // where コマンドで PATH から探す（拡張子を検証して意図しない実行形式を弾く）。
-        // %USERPROFILE% 等に偽の where.exe を置かれても拾わないよう System32 のフルパスで起動。
+        // Search PATH with where.exe and validate the extension before execution.
+        // Use the System32 binary so a forged where.exe earlier on PATH cannot be selected.
         try
         {
             var whereExe = Path.Combine(Environment.SystemDirectory, "where.exe");

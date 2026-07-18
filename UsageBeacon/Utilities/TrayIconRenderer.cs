@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 namespace UsageBeacon.Utilities;
 
 /// <summary>
-/// Claude / Codex の使用率に応じた色でタスクトレイアイコンを生成する。
+/// Renders a tray icon colored by Claude and Codex utilization.
 /// </summary>
 public static class TrayIconRenderer
 {
@@ -26,8 +26,8 @@ public static class TrayIconRenderer
             DrawBar(g, x: 18, width: 13, maxHeight: 26, yTop: 3, util: codexUtil);
         }
 
-        // GetHicon() のネイティブ HICON は Icon.FromHandle では解放されないため、
-        // マネージドコピーを作成してから DestroyIcon で明示的に破棄する。
+        // Icon.FromHandle does not own the native HICON returned by GetHicon.
+        // Clone a managed icon, then release the native handle explicitly.
         var hIcon = bmp.GetHicon();
         try
         {
@@ -46,18 +46,18 @@ public static class TrayIconRenderer
         var trackColor = Color.FromArgb(60, fillColor);
         var fillHeight = util.HasValue ? (int)(maxHeight * Math.Clamp(util.Value, 0, 1)) : 0;
 
-        // 背景トラック
+        // Background track.
         using (var brush = new SolidBrush(trackColor))
             g.FillRectangle(brush, x, yTop, width, maxHeight);
 
-        // 使用量フィル（下から積み上げ）
+        // Utilization fill grows from the bottom.
         if (fillHeight > 0)
         {
             using var brush = new SolidBrush(fillColor);
             g.FillRectangle(brush, x, yTop + maxHeight - fillHeight, width, fillHeight);
         }
 
-        // 枠線
+        // Border.
         using (var pen = new Pen(Color.FromArgb(80, 255, 255, 255), 1))
             g.DrawRectangle(pen, x, yTop, width - 1, maxHeight - 1);
     }

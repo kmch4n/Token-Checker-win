@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Windows;
+using UsageBeacon.Localization;
 using UsageBeacon.Models;
 using UsageBeacon.Services;
 using UsageBeacon.Utilities;
@@ -10,26 +11,25 @@ namespace UsageBeacon.Views;
 public partial class LoginWindow : Window
 {
     private readonly string _cliCommand;
+    private readonly string _service;
     private readonly WindowsTokenSource? _tokenSource;
     private readonly UsageViewModel _vm;
     private string? _tokenSnapshot;
     private CancellationTokenSource? _pollCts;
+    private string? _statusKey;
+    private object?[] _statusArguments = [];
 
     public LoginWindow(string service, string cliCommand, UsageViewModel vm, WindowsTokenSource? tokenSource = null)
     {
+        _service = service;
         _cliCommand  = cliCommand;
         _tokenSource = tokenSource;
         _vm          = vm;
 
         InitializeComponent();
-
-        TitleLabel.Text         = $"{service} ログイン";
-        OpenTerminalBtn.Content = $"ブラウザでログイン ({cliCommand})";
-        DescLabel.Text          =
-            "「ブラウザでログイン」を押すとターミナルが開きます。\n" +
-            "WSL（Ubuntu）にのみインストールしている場合は「WSL」ボタンをご利用ください。\n" +
-            "ブラウザが開かない場合は「コマンドをコピー」でご自身のターミナルに貼り付けて実行してください。\n" +
-            "ログイン完了後、このウィンドウは自動的に閉じます。";
+        LocalizationService.LanguageChanged += OnLanguageChanged;
+        Closed += (_, _) => LocalizationService.LanguageChanged -= OnLanguageChanged;
+        ApplyLocalization();
 
         Loaded += async (_, _) =>
         {
@@ -38,7 +38,23 @@ public partial class LoginWindow : Window
         };
     }
 
-    // ── Initialization ────────────────────────────────────────────────────
+    private void OnLanguageChanged()
+        => Dispatcher.Invoke(ApplyLocalization);
+
+    private void ApplyLocalization()
+    {
+        Title = LocalizationService.Get("LoginWindowTitle");
+        TitleLabel.Text = LocalizationService.Format("LoginTitle", _service);
+        OpenTerminalBtn.Content = LocalizationService.Format("LoginOpenBrowser", _cliCommand);
+        DescLabel.Text = LocalizationService.Get("LoginDescription");
+        CopyCommandBtn.Content = LocalizationService.Get("LoginCopyCommand");
+        CancelBtn.Content = LocalizationService.Get("CommonCancel");
+        DoneBtn.Content = LocalizationService.Get("CommonLoginComplete");
+        if (_statusKey != null)
+            StatusLabel.Text = LocalizationService.Format(_statusKey, _statusArguments);
+    }
+
+    // Initialization.
 
     private async Task SnapshotCurrentTokenAsync()
     {
@@ -47,7 +63,7 @@ public partial class LoginWindow : Window
         catch { _tokenSnapshot = null; }
     }
 
-    // ── Button handlers ───────────────────────────────────────────────────
+    // Button handlers.
 
     private void OpenTerminal_Click(object sender, RoutedEventArgs e)
     {
@@ -60,16 +76,16 @@ public partial class LoginWindow : Window
         }
         catch
         {
-            ShowStatus("ターミナルを開けませんでした。「コマンドをコピー」でご自身のターミナルに実行してください。");
+            ShowStatus("LoginTerminalFailed");
             return;
         }
 
-        // OAuth のブラウザ/ターミナル作業を妨げないよう最前面固定を解除する。
+        // Release topmost mode so it does not obstruct the browser or terminal flow.
         Topmost = false;
 
         OpenTerminalBtn.IsEnabled = false;
         DoneBtn.IsEnabled         = true;
-        ShowStatus("ブラウザでログインしてください。完了すると自動的に閉じます。");
+        ShowStatus("LoginBrowserPending");
 
         if (_tokenSource != null)
             _ = PollForNewTokenAsync();
@@ -79,8 +95,8 @@ public partial class LoginWindow : Window
     {
         try
         {
-            // bash -il で .bashrc + .profile の両方を読み込み、claude の PATH を有効にする
-            // シングルクォートは cmd.exe に解釈されないため wsl 側へそのまま渡る
+            // Load both .bashrc and .profile so the CLI is available on the WSL PATH.
+            // cmd.exe does not interpret the single quotes, so WSL receives them unchanged.
             Process.Start(new ProcessStartInfo("cmd.exe", $"/k wsl -- bash -il -c '{_cliCommand}'")
             {
                 UseShellExecute = true,
@@ -88,7 +104,7 @@ public partial class LoginWindow : Window
         }
         catch
         {
-            ShowStatus("WSLを開けませんでした。WSL（Ubuntu等）がインストールされているか確認してください。");
+            ShowStatus("LoginWslFailed");
             return;
         }
 
@@ -96,7 +112,7 @@ public partial class LoginWindow : Window
         OpenTerminalBtn.IsEnabled = false;
         OpenWslBtn.IsEnabled      = false;
         DoneBtn.IsEnabled         = true;
-        ShowStatus("WSLターミナルでログインしてください。完了すると自動的に閉じます。");
+        ShowStatus("LoginWslPending");
 
         if (_tokenSource != null)
             _ = PollForNewTokenAsync();
@@ -106,7 +122,7 @@ public partial class LoginWindow : Window
     {
         try { System.Windows.Clipboard.SetText(_cliCommand); }
         catch { }
-        ShowStatus($"コピーしました: {_cliCommand}\nご自身のターミナルに貼り付けて実行してください。");
+        ShowStatus("LoginCommandCopied", _cliCommand);
         DoneBtn.IsEnabled = true;
     }
 
@@ -123,7 +139,7 @@ public partial class LoginWindow : Window
         Close();
     }
 
-    // ── Token polling ─────────────────────────────────────────────────────
+    // Token polling.
 
     private async Task PollForNewTokenAsync()
     {
@@ -140,7 +156,7 @@ public partial class LoginWindow : Window
                 var token = await _tokenSource!.ReadAccessTokenAsync(ct);
                 if (token != _tokenSnapshot)
                 {
-                    Dispatcher.Invoke(() => ShowStatus("✓ ログイン完了！ウィンドウを閉じます..."));
+                    Dispatcher.Invoke(() => ShowStatus("LoginSucceeded"));
                     await Task.Delay(1400, ct);
                     Dispatcher.Invoke(() =>
                     {
@@ -156,11 +172,13 @@ public partial class LoginWindow : Window
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────
+    // Helpers.
 
-    private void ShowStatus(string message)
+    private void ShowStatus(string key, params object?[] arguments)
     {
-        StatusLabel.Text      = message;
+        _statusKey = key;
+        _statusArguments = arguments;
+        StatusLabel.Text = LocalizationService.Format(key, arguments);
         StatusArea.Visibility = Visibility.Visible;
     }
 }

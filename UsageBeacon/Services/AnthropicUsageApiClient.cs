@@ -18,8 +18,8 @@ public sealed class AnthropicUsageApiClient : IAnthropicUsageApiClient
     private static readonly Uri UsageUrl =
         new("https://api.anthropic.com/api/oauth/usage");
 
-    // リダイレクトを追従すると Bearer トークンや anthropic-beta ヘッダーが
-    // 攻撃者ホストへ送られうるため明示的に無効化する。レスポンスサイズも上限を設ける。
+    // Disable redirects so bearer and beta headers cannot be forwarded to another host.
+    // Bound response size as an additional defensive limit.
     private static readonly HttpClient SharedHttp = new(new SocketsHttpHandler { AllowAutoRedirect = false })
     {
         Timeout = TimeSpan.FromSeconds(10),
@@ -49,11 +49,11 @@ public sealed class AnthropicUsageApiClient : IAnthropicUsageApiClient
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            throw; // 終了・キャンセルはネットワークエラーに化けさせない
+            throw; // Preserve caller cancellation instead of reporting a network error.
         }
         catch (OperationCanceledException)
         {
-            throw DomainError.Timeout(); // HttpClient.Timeout 経過
+            throw DomainError.Timeout(); // HttpClient timeout elapsed.
         }
         catch (Exception e)
         {

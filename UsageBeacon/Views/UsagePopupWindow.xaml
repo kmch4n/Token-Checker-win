@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctrl="clr-namespace:UsageBeacon.Controls"
         Title="UsageBeacon"
-        Width="320"
+        Width="360"
         SizeToContent="Height"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -93,7 +93,7 @@
 
         <StackPanel Margin="16,14">
 
-            <!-- ── ヘッダー -->
+            <!-- Header -->
             <Grid Margin="0,0,0,12">
                 <TextBlock Text="UsageBeacon"
                            Foreground="{DynamicResource PrimaryText}"
@@ -102,15 +102,15 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="RefreshBtn"
                             Content="↻" Style="{StaticResource LinkBtn}"
-                            FontSize="15" ToolTip="今すぐ更新"
+                            FontSize="15"
                             Click="Refresh_Click"/>
-                    <Button Content="✕" Style="{StaticResource LinkBtn}"
-                            FontSize="13" ToolTip="閉じる"
+                    <Button x:Name="CloseBtn" Content="✕" Style="{StaticResource LinkBtn}"
+                            FontSize="13"
                             Click="Close_Click"/>
                 </StackPanel>
             </Grid>
 
-            <!-- ── Claude -->
+            <!-- Claude -->
             <StackPanel Margin="0,0,0,12">
                 <Grid Margin="0,0,0,8">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -118,19 +118,19 @@
                         <TextBlock Text="Claude Code" Style="{StaticResource Title}"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button x:Name="ClaudeIntegrationBtn" Content="連携"
+                        <Button x:Name="ClaudeIntegrationBtn"
                                 Style="{StaticResource LinkBtn}" Click="ClaudeIntegration_Click"/>
-                        <Button Content="ログイン"
+                        <Button x:Name="ClaudeLoginBtn"
                                 Style="{StaticResource LinkBtn}" Click="ClaudeLogin_Click"/>
                     </StackPanel>
                 </Grid>
 
-                <TextBlock x:Name="ClaudeLoading" Text="取得中…" Style="{StaticResource Label}"/>
+                <TextBlock x:Name="ClaudeLoading" Style="{StaticResource Label}"/>
 
                 <StackPanel x:Name="ClaudeContent" Visibility="Collapsed">
                     <StackPanel x:Name="Claude5hPanel">
                         <Grid Margin="0,0,0,3">
-                            <TextBlock Text="5時間" Style="{StaticResource Label}"/>
+                            <TextBlock x:Name="ClaudeFiveHourLabel" Style="{StaticResource Label}"/>
                             <TextBlock x:Name="Claude5hPct" HorizontalAlignment="Right"
                                        FontSize="13" FontWeight="Bold"/>
                         </Grid>
@@ -140,7 +140,7 @@
 
                     <StackPanel x:Name="ClaudeWeeklyRow" Margin="0,8,0,0">
                         <Grid Margin="0,0,0,3">
-                            <TextBlock Text="週次 (7日)" Style="{StaticResource Label}"/>
+                            <TextBlock x:Name="ClaudeWeeklyLabel" Style="{StaticResource Label}"/>
                             <TextBlock x:Name="ClaudeWeeklyPct" HorizontalAlignment="Right"
                                        FontSize="13" FontWeight="Bold"/>
                         </Grid>
@@ -149,7 +149,7 @@
                     </StackPanel>
 
                     <Grid x:Name="ClaudeSonnetRow" Margin="0,5,0,0">
-                        <TextBlock Text="週次 (Sonnet)" Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="ClaudeSonnetLabel" Style="{StaticResource Label}"/>
                         <TextBlock x:Name="ClaudeSonnetPct" HorizontalAlignment="Right"
                                    FontSize="11"/>
                     </Grid>
@@ -161,7 +161,7 @@
                         Background="{StaticResource ErrorBg}"
                         CornerRadius="6" Padding="8,6" Margin="0,6,0,0">
                     <StackPanel>
-                        <TextBlock x:Name="ClaudeErrorTitle" Text="⚠ 取得失敗" Foreground="#FF9800"
+                        <TextBlock x:Name="ClaudeErrorTitle" Foreground="#FF9800"
                                    FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
                         <TextBlock x:Name="ClaudeErrorMsg"
                                    Foreground="{DynamicResource SecondaryText}"
@@ -172,23 +172,23 @@
 
             <Separator Margin="0,0,0,12"/>
 
-            <!-- ── Codex -->
+            <!-- Codex -->
             <StackPanel Margin="0,0,0,12">
                 <Grid Margin="0,0,0,8">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="▶ " Style="{StaticResource Title}" Foreground="#7A8EE0"/>
                         <TextBlock Text="Codex" Style="{StaticResource Title}"/>
                     </StackPanel>
-                    <Button HorizontalAlignment="Right" Content="ログイン"
+                    <Button x:Name="CodexLoginBtn" HorizontalAlignment="Right"
                             Style="{StaticResource LinkBtn}" Click="CodexLogin_Click"/>
                 </Grid>
 
-                <TextBlock x:Name="CodexLoading" Text="取得中…" Style="{StaticResource Label}"/>
+                <TextBlock x:Name="CodexLoading" Style="{StaticResource Label}"/>
 
                 <StackPanel x:Name="CodexContent" Visibility="Collapsed">
                     <StackPanel x:Name="Codex5hPanel">
                         <Grid Margin="0,0,0,3">
-                            <TextBlock Text="5時間" Style="{StaticResource Label}"/>
+                            <TextBlock x:Name="CodexFiveHourLabel" Style="{StaticResource Label}"/>
                             <TextBlock x:Name="Codex5hPct" HorizontalAlignment="Right"
                                        FontSize="13" FontWeight="Bold"/>
                         </Grid>
@@ -198,7 +198,7 @@
 
                     <StackPanel x:Name="CodexWeeklyRow" Margin="0,8,0,0">
                         <Grid Margin="0,0,0,3">
-                            <TextBlock Text="週次 (7日)" Style="{StaticResource Label}"/>
+                            <TextBlock x:Name="CodexWeeklyLabel" Style="{StaticResource Label}"/>
                             <TextBlock x:Name="CodexWeeklyPct" HorizontalAlignment="Right"
                                        FontSize="13" FontWeight="Bold"/>
                         </Grid>
@@ -211,7 +211,7 @@
                         Background="{StaticResource ErrorBg}"
                         CornerRadius="6" Padding="8,6" Margin="0,6,0,0">
                     <StackPanel>
-                        <TextBlock x:Name="CodexErrorTitle" Text="⚠ 取得失敗" Foreground="#FF9800"
+                        <TextBlock x:Name="CodexErrorTitle" Foreground="#FF9800"
                                    FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
                         <TextBlock x:Name="CodexErrorMsg"
                                    Foreground="{DynamicResource SecondaryText}"
@@ -222,45 +222,51 @@
 
             <Separator Margin="0,0,0,12"/>
 
-            <!-- ── 設定 -->
+            <!-- Settings -->
             <StackPanel Margin="0,0,0,12">
                 <Grid Margin="0,0,0,6">
-                    <TextBlock Text="更新間隔" Style="{StaticResource Label}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="PollingIntervalLabel" Style="{StaticResource Label}" VerticalAlignment="Center"/>
                     <ComboBox x:Name="IntervalPicker" HorizontalAlignment="Right" Width="80"
                               SelectionChanged="IntervalPicker_SelectionChanged"/>
                 </Grid>
-                <TextBlock Text="Claude API は最短30分 / Codex は選択した間隔" Style="{StaticResource Tiny}"
+                <TextBlock x:Name="PollingIntervalNote" Style="{StaticResource Tiny}"
+                           TextWrapping="Wrap"
                            Margin="0,0,0,6"/>
                 <Grid Margin="0,0,0,6">
-                    <TextBlock Text="ログイン時に自動起動" Style="{StaticResource Label}"
+                    <TextBlock x:Name="StartupLabel" Style="{StaticResource Label}"
                                VerticalAlignment="Center"/>
                     <CheckBox x:Name="StartupChk" HorizontalAlignment="Right"
                               Checked="StartupChk_Changed" Unchecked="StartupChk_Changed"/>
                 </Grid>
                 <Grid Margin="0,0,0,6">
-                    <TextBlock Text="背景透明度" Style="{StaticResource Label}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TransparencyLabel" Style="{StaticResource Label}" VerticalAlignment="Center"/>
                     <ComboBox x:Name="TransparencyPicker" HorizontalAlignment="Right" Width="92"
                               SelectionChanged="TransparencyPicker_SelectionChanged"/>
                 </Grid>
                 <Grid Margin="0,0,0,6">
-                    <TextBlock Text="表示モニター" Style="{StaticResource Label}" VerticalAlignment="Center"/>
-                    <Button x:Name="MonitorBtn" HorizontalAlignment="Right" Content="⇄ 切替"
+                    <TextBlock x:Name="MonitorLabel" Style="{StaticResource Label}" VerticalAlignment="Center"/>
+                    <Button x:Name="MonitorBtn" HorizontalAlignment="Right"
                             Style="{StaticResource LinkBtn}" Click="Monitor_Click"/>
                 </Grid>
-                <Grid>
-                    <TextBlock Text="表示位置" Style="{StaticResource Label}" VerticalAlignment="Center"/>
-                    <Button x:Name="PlacementBtn" HorizontalAlignment="Right" Content="右"
+                <Grid Margin="0,0,0,6">
+                    <TextBlock x:Name="PositionLabel" Style="{StaticResource Label}" VerticalAlignment="Center"/>
+                    <Button x:Name="PlacementBtn" HorizontalAlignment="Right"
                             Style="{StaticResource LinkBtn}" Click="Placement_Click"/>
+                </Grid>
+                <Grid>
+                    <TextBlock x:Name="LanguageLabel" Style="{StaticResource Label}" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="LanguagePicker" HorizontalAlignment="Right" Width="130"
+                              SelectionChanged="LanguagePicker_SelectionChanged"/>
                 </Grid>
             </StackPanel>
 
             <Separator Margin="0,0,0,10"/>
 
-            <!-- ── フッター -->
+            <!-- Footer -->
             <Grid>
                 <TextBlock x:Name="FetchedAtLabel" Style="{StaticResource Tiny}"
                            VerticalAlignment="Center"/>
-                <Button HorizontalAlignment="Right" Content="終了"
+                <Button x:Name="QuitBtn" HorizontalAlignment="Right"
                         Style="{StaticResource LinkBtn}" Click="Quit_Click"/>
             </Grid>
 

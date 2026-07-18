@@ -17,7 +17,7 @@ public sealed class CodexUsageProvider : IUsageProvider, IAsyncDisposable
 
     public async Task<ServiceUsage> FetchAsync(CancellationToken ct = default)
     {
-        // 失敗が続く間は指数バックオフし、毎ポーリングでの Start→Exit 連打を防ぐ。
+        // Back off after repeated failures to avoid a start-exit loop on every poll.
         if (_lastError != null && DateTime.UtcNow < _nextAttemptUtc)
             throw _lastError;
 
@@ -31,7 +31,7 @@ public sealed class CodexUsageProvider : IUsageProvider, IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
-            throw; // 終了・キャンセルは失敗回数に数えない
+            throw; // Do not count shutdown or cancellation as a failure.
         }
         catch (DomainError e)
         {
@@ -39,9 +39,9 @@ public sealed class CodexUsageProvider : IUsageProvider, IAsyncDisposable
             var seconds = Math.Min(MaxBackoff.TotalSeconds, 5 * Math.Pow(2, _consecutiveFailures - 1));
             _nextAttemptUtc = DateTime.UtcNow.AddSeconds(seconds);
 
-            // stderr に手掛かりがあれば（古い codex / 認証切れ等）エラーに添える。
+            // Attach stderr diagnostics such as an old CLI version when available.
             var stderr = _client.LastStderr;
-            // 認証失効は分かりやすいメッセージを保持し、stderr で上書きしない。
+            // Preserve the explicit unauthorized error instead of replacing it with stderr.
             _lastError = (string.IsNullOrWhiteSpace(stderr) || e.Kind == DomainErrorKind.CodexUnauthorized)
                 ? e
                 : DomainError.CodexRpcError($"{e.Message} / {stderr}");
@@ -49,13 +49,13 @@ public sealed class CodexUsageProvider : IUsageProvider, IAsyncDisposable
         }
     }
 
-    /// <summary>手動更新時にバックオフを解除し、即座に再取得できるようにする。</summary>
+    /// <summary>Clears backoff so a manual refresh can retry immediately.</summary>
     public void ResetBackoff()
     {
         _consecutiveFailures = 0;
         _nextAttemptUtc = DateTime.MinValue;
         _lastError = null;
-        // 認証切れ後に再ログインした場合、古いプロセスを停止して新トークンで再起動させる。
+        // Restart the old process after sign-in so it uses the new token.
         _client.Stop();
     }
 
@@ -68,7 +68,7 @@ public sealed class CodexUsageProvider : IUsageProvider, IAsyncDisposable
         }
         catch (DomainError e) when (e.Kind == DomainErrorKind.CodexProcessExited)
         {
-            // プロセスが落ちていたら一度だけ再起動して再試行
+            // Restart and retry once if the process exited.
             _client.Stop();
             await _client.StartAsync(ct);
             return Map(await _client.ReadRateLimitsAsync(ct));

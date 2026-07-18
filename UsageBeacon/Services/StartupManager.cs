@@ -3,7 +3,7 @@ using Microsoft.Win32;
 namespace UsageBeacon.Services;
 
 /// <summary>
-/// Windows レジストリの Run キーを使ってログイン時自動起動を管理する。
+/// Manages startup at sign-in through the Windows registry Run key.
 /// </summary>
 public static class StartupManager
 {
@@ -37,7 +37,7 @@ public static class StartupManager
         }
         set
         {
-            // Run キーが存在しないユーザーでも NRE にならないよう CreateSubKey を使う。
+            // Create the Run key when it does not already exist.
             using var key = Registry.CurrentUser.CreateSubKey(RunKey, writable: true);
             if (value)
             {

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using UsageBeacon.Localization;
 using UsageBeacon.Models;
 using UsageBeacon.Services;
 using UsageBeacon.Utilities;
@@ -14,6 +15,10 @@ public partial class UsagePopupWindow : Window
     private readonly ClaudeStatusLineIntegration _claudeIntegration = new();
     private bool _pickerReady;
     private bool _transparencyPickerReady;
+    private bool _languagePickerReady;
+    private int _monitorIndex;
+    private int _monitorTotal = 1;
+    private WidgetPlacement _placement;
 
     public event Action? MonitorSwitchRequested;
     public event Action? PlacementSwitchRequested;
@@ -21,14 +26,49 @@ public partial class UsagePopupWindow : Window
     public UsagePopupWindow(UsageViewModel vm)
     {
         _vm = vm;
+        _placement = vm.WidgetPlacement;
         InitializeComponent();
         ApplySystemAppearance();
-        SetupIntervalPicker();
-        SetupTransparencyPicker();
         StartupChk.IsChecked = vm.StartupEnabled;
-        SyncClaudeIntegrationButton();
+        LocalizationService.LanguageChanged += OnLanguageChanged;
+        Closed += (_, _) => LocalizationService.LanguageChanged -= OnLanguageChanged;
         vm.PropertyChanged  += (_, _) => Dispatcher.Invoke(Refresh);
 
+        ApplyLocalization();
+        Refresh();
+    }
+
+    private void OnLanguageChanged()
+        => Dispatcher.Invoke(ApplyLocalization);
+
+    private void ApplyLocalization()
+    {
+        RefreshBtn.ToolTip = LocalizationService.Get("TooltipRefreshNow");
+        CloseBtn.ToolTip = LocalizationService.Get("TooltipClose");
+        ClaudeLoginBtn.Content = LocalizationService.Get("CommonLogin");
+        CodexLoginBtn.Content = LocalizationService.Get("CommonLogin");
+        ClaudeLoading.Text = LocalizationService.Get("StatusLoading");
+        CodexLoading.Text = LocalizationService.Get("StatusLoading");
+        ClaudeFiveHourLabel.Text = LocalizationService.Get("UsageFiveHour");
+        CodexFiveHourLabel.Text = LocalizationService.Get("UsageFiveHour");
+        ClaudeWeeklyLabel.Text = LocalizationService.Get("UsageWeekly");
+        CodexWeeklyLabel.Text = LocalizationService.Get("UsageWeekly");
+        ClaudeSonnetLabel.Text = LocalizationService.Get("UsageWeeklySonnet");
+        PollingIntervalLabel.Text = LocalizationService.Get("SettingsPollingInterval");
+        PollingIntervalNote.Text = LocalizationService.Get("SettingsPollingNote");
+        StartupLabel.Text = LocalizationService.Get("SettingsStartAtLogin");
+        TransparencyLabel.Text = LocalizationService.Get("SettingsTransparency");
+        MonitorLabel.Text = LocalizationService.Get("SettingsMonitor");
+        PositionLabel.Text = LocalizationService.Get("SettingsPosition");
+        LanguageLabel.Text = LocalizationService.Get("SettingsLanguage");
+        QuitBtn.Content = LocalizationService.Get("CommonExit");
+
+        SetupIntervalPicker();
+        SetupTransparencyPicker();
+        SetupLanguagePicker();
+        SyncClaudeIntegrationButton();
+        UpdateMonitorLabel(_monitorIndex, _monitorTotal);
+        UpdatePlacementLabel(_placement);
         Refresh();
     }
 
@@ -45,7 +85,7 @@ public partial class UsagePopupWindow : Window
         Resources["HoverBg"] = hover;
     }
 
-    // ── Binding helpers ──────────────────────────────────────────────────
+    // View refresh helpers.
 
     private void Refresh()
     {
@@ -71,17 +111,17 @@ public partial class UsagePopupWindow : Window
 
         if (snap.ClaudeError != null)
         {
-            // 直前値があれば常に表示し続ける（待機/一時エラー中も数字を消さない）。
+            // Keep the last successful value visible while a retry is pending.
             var showLastValue = snap.ClaudeUsage != null;
             ClaudeContent.Visibility = showLastValue ? Visibility.Visible : Visibility.Collapsed;
             ClaudeError.Visibility   = Visibility.Visible;
             ClaudeErrorTitle.Text    = showLastValue || snap.ClaudeError.Kind == DomainErrorKind.AnthropicRateLimited
-                ? "⏳ 更新待機中"
-                : "⚠ 取得失敗";
+                ? LocalizationService.Get("ErrorWaitingTitle")
+                : LocalizationService.Get("ErrorFailureTitle");
             ClaudeErrorMsg.Text      = snap.ClaudeError.Kind == DomainErrorKind.AnthropicRateLimited &&
                                        _vm.ClaudeNextRetryAt is { } retryAt
-                ? $"{snap.ClaudeError.Message}\n次回の自動取得: {retryAt:HH:mm}"
-                : snap.ClaudeError.Message;
+                ? $"{LocalizedText.DomainError(snap.ClaudeError)}\n{LocalizationService.Format("RetryNextAutomatic", retryAt.ToString("t", LocalizationService.Culture))}"
+                : LocalizedText.DomainError(snap.ClaudeError);
             if (!showLastValue) return;
         }
         else
@@ -93,8 +133,11 @@ public partial class UsagePopupWindow : Window
         ClaudeFreshness.Visibility = Visibility.Visible;
         ClaudeFreshness.Text = snap.ClaudeFetchedAtUtc is { } fetchedAt &&
                                fetchedAt > DateTime.MinValue
-            ? $"取得: {fetchedAt.ToLocalTime():M/d HH:mm} / {ClaudeSourceLabel(snap.ClaudeSource)}"
-            : "取得時刻不明（旧キャッシュ）";
+            ? LocalizationService.Format(
+                "UsageFetched",
+                fetchedAt.ToLocalTime().ToString("g", LocalizationService.Culture),
+                ClaudeSourceLabel(snap.ClaudeSource))
+            : LocalizationService.Get("UsageFetchedUnknown");
 
         if (usage.FiveHour is { } fh)
         {
@@ -102,7 +145,7 @@ public partial class UsagePopupWindow : Window
             Claude5hBar.Value        = fh.Utilization;
             Claude5hPct.Text         = $"{fh.Percent}%";
             Claude5hPct.Foreground   = UtilBrush(fh.Utilization);
-            Claude5hReset.Text       = ResetLabel(fh.ResetsAt);
+            Claude5hReset.Text       = LocalizedText.ResetTime(fh.ResetsAt);
         }
         else { Claude5hPanel.Visibility = Visibility.Collapsed; }
 
@@ -112,7 +155,7 @@ public partial class UsagePopupWindow : Window
             ClaudeWeeklyPct.Text       = $"{w.Percent}%";
             ClaudeWeeklyPct.Foreground = UtilBrush(w.Utilization);
             ClaudeWeeklyBar.Value      = w.Utilization;
-            ClaudeWeeklyReset.Text     = ResetLabel(w.ResetsAt);
+            ClaudeWeeklyReset.Text     = LocalizedText.ResetTime(w.ResetsAt);
         }
         else { ClaudeWeeklyRow.Visibility = Visibility.Collapsed; }
 
@@ -141,12 +184,14 @@ public partial class UsagePopupWindow : Window
 
         if (snap.CodexError != null)
         {
-            // 直前値があれば常に表示し続ける（待機/一時エラー中も数字を消さない）。
+            // Keep the last successful value visible while a retry is pending.
             var showLastValue = snap.CodexUsage != null;
             CodexContent.Visibility = showLastValue ? Visibility.Visible : Visibility.Collapsed;
             CodexError.Visibility   = Visibility.Visible;
-            CodexErrorTitle.Text    = showLastValue ? "⏳ 更新待機中" : "⚠ 取得失敗";
-            CodexErrorMsg.Text      = snap.CodexError.Message;
+            CodexErrorTitle.Text    = showLastValue
+                ? LocalizationService.Get("ErrorWaitingTitle")
+                : LocalizationService.Get("ErrorFailureTitle");
+            CodexErrorMsg.Text      = LocalizedText.DomainError(snap.CodexError);
             if (!showLastValue) return;
         }
         else
@@ -162,7 +207,7 @@ public partial class UsagePopupWindow : Window
             Codex5hBar.Value        = fh.Utilization;
             Codex5hPct.Text         = $"{fh.Percent}%";
             Codex5hPct.Foreground   = UtilBrush(fh.Utilization);
-            Codex5hReset.Text       = ResetLabel(fh.ResetsAt);
+            Codex5hReset.Text       = LocalizedText.ResetTime(fh.ResetsAt);
         }
         else { Codex5hPanel.Visibility = Visibility.Collapsed; }
 
@@ -172,7 +217,7 @@ public partial class UsagePopupWindow : Window
             CodexWeeklyPct.Text       = $"{w.Percent}%";
             CodexWeeklyPct.Foreground = UtilBrush(w.Utilization);
             CodexWeeklyBar.Value      = w.Utilization;
-            CodexWeeklyReset.Text     = ResetLabel(w.ResetsAt);
+            CodexWeeklyReset.Text     = LocalizedText.ResetTime(w.ResetsAt);
         }
         else { CodexWeeklyRow.Visibility = Visibility.Collapsed; }
     }
@@ -180,12 +225,14 @@ public partial class UsagePopupWindow : Window
     private void RefreshFooter()
     {
         if (_vm.Snapshot.FetchedAt > DateTime.MinValue)
-            FetchedAtLabel.Text = $"最終確認: {_vm.Snapshot.FetchedAt:HH:mm:ss}";
+            FetchedAtLabel.Text = LocalizationService.Format(
+                "FooterLastChecked",
+                _vm.Snapshot.FetchedAt.ToString("T", LocalizationService.Culture));
 
         RefreshBtn.IsEnabled = !_vm.IsLoading;
     }
 
-    // ── Interval picker ──────────────────────────────────────────────────
+    // Settings pickers.
 
     private void SetupIntervalPicker()
     {
@@ -211,7 +258,7 @@ public partial class UsagePopupWindow : Window
 
     private sealed record IntervalItem(PollingInterval Value)
     {
-        public string Label { get; } = Value.ToLabel();
+        public string Label { get; } = LocalizedText.PollingInterval(Value);
     }
 
     private void SetupTransparencyPicker()
@@ -234,10 +281,28 @@ public partial class UsagePopupWindow : Window
 
     private sealed record TransparencyItem(PopupTransparency Value)
     {
-        public string Label { get; } = Value.ToLabel();
+        public string Label { get; } = LocalizedText.PopupTransparency(Value);
     }
 
-    // ── Event handlers ───────────────────────────────────────────────────
+    private void SetupLanguagePicker()
+    {
+        _languagePickerReady = false;
+        LanguagePicker.ItemsSource = LocalizationService.SupportedLanguages;
+        LanguagePicker.DisplayMemberPath = nameof(LanguageOption.DisplayName);
+        LanguagePicker.SelectedValuePath = nameof(LanguageOption.Code);
+        LanguagePicker.SelectedValue = _vm.UiLanguage;
+        _languagePickerReady = true;
+    }
+
+    private void LanguagePicker_SelectionChanged(
+        object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_languagePickerReady && LanguagePicker.SelectedItem is LanguageOption option)
+            _vm.UiLanguage = option.Code;
+    }
+
+    // Event handlers.
 
     private async void Refresh_Click(object sender, RoutedEventArgs e)
         => await _vm.RefreshAsync(force: true);
@@ -248,7 +313,8 @@ public partial class UsagePopupWindow : Window
     private void Quit_Click(object sender, RoutedEventArgs e)
     {
         if (System.Windows.MessageBox.Show(
-                "UsageBeacon を終了しますか？", "確認",
+                LocalizationService.Get("QuitPrompt"),
+                LocalizationService.Get("CommonConfirm"),
                 System.Windows.MessageBoxButton.YesNo,
                 System.Windows.MessageBoxImage.Question) == System.Windows.MessageBoxResult.Yes)
             System.Windows.Application.Current.Shutdown();
@@ -269,7 +335,7 @@ public partial class UsagePopupWindow : Window
                 if (!_claudeIntegration.Disable())
                 {
                     System.Windows.MessageBox.Show(
-                        "Claude Code の設定が連携後に変更されています。現在の設定を保護するため、自動解除しませんでした。",
+                        LocalizationService.Get("IntegrationChangedWarning"),
                         "UsageBeacon",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
@@ -279,8 +345,8 @@ public partial class UsagePopupWindow : Window
             else
             {
                 var result = System.Windows.MessageBox.Show(
-                    "Claude Code の status line に UsageBeacon bridge を追加します。既存の status line は保持され、bridge 実行後にそのまま呼び出されます。続行しますか？",
-                    "Claude Code 連携",
+                    LocalizationService.Get("IntegrationEnablePrompt"),
+                    LocalizationService.Get("IntegrationTitle"),
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
                 if (result != MessageBoxResult.Yes) return;
@@ -291,7 +357,7 @@ public partial class UsagePopupWindow : Window
         catch (Exception ex)
         {
             System.Windows.MessageBox.Show(
-                $"Claude Code 連携の更新に失敗しました。\n{ex.Message}",
+                LocalizationService.Format("IntegrationFailed", ex.Message),
                 "UsageBeacon",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
@@ -313,7 +379,7 @@ public partial class UsagePopupWindow : Window
     private void Placement_Click(object sender, RoutedEventArgs e)
         => PlacementSwitchRequested?.Invoke();
 
-    // ── Helpers ──────────────────────────────────────────────────────────
+    // Helpers.
 
     private static SolidColorBrush UtilBrush(double v) => new(
         v < 0.75 ? MediaColor.FromRgb(0x4C, 0xAF, 0x50) :
@@ -323,40 +389,32 @@ public partial class UsagePopupWindow : Window
     private static string ClaudeSourceLabel(UsageDataSource? source) => source switch
     {
         UsageDataSource.ClaudeCodeStatusLine => "Claude Code",
-        UsageDataSource.OAuthApi => "Usage API",
-        _ => "キャッシュ",
+        UsageDataSource.OAuthApi => LocalizationService.Get("SourceUsageApi"),
+        _ => LocalizationService.Get("SourceCache"),
     };
 
     private void SyncClaudeIntegrationButton()
     {
-        ClaudeIntegrationBtn.Content = _claudeIntegration.IsEnabled ? "連携解除" : "連携";
-    }
-
-    private static string ResetLabel(DateTime resetsAt)
-    {
-        if (resetsAt == DateTime.MinValue) return "直近5時間の使用なし";
-        var local = resetsAt.Kind == DateTimeKind.Utc ? resetsAt.ToLocalTime() : resetsAt;
-        var now   = DateTime.Now;
-        if (local <= now.AddMinutes(1)) return "まもなくリセット";
-
-        var diff = local - now;
-        if (diff.TotalDays >= 1)
-            return $"あと {(int)diff.TotalDays}日{diff.Hours}時間 ({local:M/d HH:mm} リセット)";
-
-        var h   = (int)diff.TotalHours;
-        var m   = diff.Minutes;
-        var rel = h > 0 ? $"{h}時間{m}分" : $"{m}分";
-        return $"あと {rel} ({local:HH:mm} リセット)";
+        ClaudeIntegrationBtn.Content = _claudeIntegration.IsEnabled
+            ? LocalizationService.Get("IntegrationDisable")
+            : LocalizationService.Get("IntegrationEnable");
     }
 
     public void UpdateMonitorLabel(int index, int total)
     {
-        MonitorBtn.Content = total > 1 ? $"⇄ {index + 1}/{total}" : "⇄ 切替";
+        _monitorIndex = index;
+        _monitorTotal = total;
+        MonitorBtn.Content = total > 1
+            ? LocalizationService.Format("MonitorIndex", index + 1, total)
+            : LocalizationService.Get("MonitorSwitch");
     }
 
     public void UpdatePlacementLabel(WidgetPlacement placement)
     {
-        PlacementBtn.Content = placement == WidgetPlacement.Right ? "右" : "左";
+        _placement = placement;
+        PlacementBtn.Content = placement == WidgetPlacement.Right
+            ? LocalizationService.Get("PlacementRight")
+            : LocalizationService.Get("PlacementLeft");
     }
 
 }

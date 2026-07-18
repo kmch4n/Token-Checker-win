@@ -10,9 +10,8 @@ using UsageBeacon.Models;
 namespace UsageBeacon.Services;
 
 /// <summary>
-/// Windows 資格情報マネージャーから Claude Code の OAuth トークンを読み取る。
-/// keytar が CRED_TYPE_GENERIC で保存した値を P/Invoke で取得する。
-/// 見つからない場合は %USERPROFILE%\.claude\credentials.json にフォールバック。
+/// Reads Claude Code OAuth credentials from Windows Credential Manager.
+/// Uses P/Invoke for keytar CRED_TYPE_GENERIC entries and falls back to credential files.
 /// </summary>
 public sealed class WindowsTokenSource : IClaudeCredentialSource
 {
@@ -26,7 +25,7 @@ public sealed class WindowsTokenSource : IClaudeCredentialSource
         var now = DateTimeOffset.UtcNow;
         ClaudeCredential? expiredCredential = null;
 
-        // 1) Windows 資格情報マネージャーを試す（複数のターゲット名）
+        // Try known Windows Credential Manager target names.
         var username = Environment.UserName;
         var targets = new[]
         {
@@ -46,12 +45,12 @@ public sealed class WindowsTokenSource : IClaudeCredentialSource
             }
         }
 
-        // 2) ファイルにフォールバック
+        // Fall back to Windows credential files.
         var home    = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var filePaths = new[]
         {
-            // Claude Code が実際に保存する先（ファイル名は先頭ドット付き）
+            // Claude Code uses the leading-dot filename in current releases.
             Path.Combine(home, ".claude", ".credentials.json"),
             Path.Combine(home, ".claude", "credentials.json"),
             Path.Combine(appData, "Claude", "credentials.json"),
@@ -71,7 +70,7 @@ public sealed class WindowsTokenSource : IClaudeCredentialSource
             catch { }
         }
 
-        // 3) WSL ファイルシステムにフォールバック（WSL 内にのみ claude がある場合）
+        // Fall back to WSL files when the CLI exists only inside WSL.
         foreach (var path in GetWslCredentialPaths())
         {
             if (!File.Exists(path)) continue;
@@ -143,7 +142,7 @@ public sealed class WindowsTokenSource : IClaudeCredentialSource
 
         foreach (var distro in distros)
         {
-            // Windows 11 は \\wsl.localhost\、Windows 10 は \\wsl$\ を使う
+            // Windows 11 uses \\wsl.localhost\ while Windows 10 uses \\wsl$\.
             foreach (var prefix in new[] { $@"\\wsl.localhost\{distro}", $@"\\wsl$\{distro}" })
             {
                 yield return Path.Combine(prefix, "home", wslUser, ".claude", ".credentials.json");
@@ -167,14 +166,14 @@ public sealed class WindowsTokenSource : IClaudeCredentialSource
             Marshal.Copy(cred.CredentialBlob, bytes, 0, bytes.Length);
             try
             {
-                // keytar は UTF-16LE で保存する
+                // keytar stores the credential as UTF-16LE.
                 var json = Encoding.Unicode.GetString(bytes).TrimEnd('\0');
                 if (!json.StartsWith('{')) json = Encoding.UTF8.GetString(bytes).TrimEnd('\0');
                 return json;
             }
             finally
             {
-                // 資格情報のコピーをメモリ上に残さない
+                // Clear the unmanaged copy of the credential.
                 CryptographicOperations.ZeroMemory(bytes);
             }
         }

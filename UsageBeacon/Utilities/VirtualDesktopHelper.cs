@@ -3,8 +3,7 @@ using System.Runtime.InteropServices;
 namespace UsageBeacon.Utilities;
 
 /// <summary>
-/// Windows 仮想デスクトップ API のラッパー。
-/// ウィンドウを全デスクトップに固定し、切り替え時の追従を担う。
+/// Wraps Windows virtual desktop APIs for pinning and desktop-follow behavior.
 /// </summary>
 public static class VirtualDesktopHelper
 {
@@ -47,9 +46,8 @@ public static class VirtualDesktopHelper
     }
 
     /// <summary>
-    /// ウィンドウを全仮想デスクトップに固定する。
-    /// Windows 10/11 で有効な SetPropW アプローチを使用。
-    /// 非対応環境向けに IsOnCurrentDesktop + MoveToCurrentDesktop がフォールバックとして機能する。
+    /// Pins a window to every virtual desktop through SetPropW on Windows 10 and 11.
+    /// IsOnCurrentDesktop and MoveToCurrentDesktop provide a fallback when unsupported.
     /// </summary>
     public static void PinToAllDesktops(IntPtr hwnd)
     {
@@ -57,7 +55,7 @@ public static class VirtualDesktopHelper
         catch { }
     }
 
-    /// <summary>指定ウィンドウが現在アクティブな仮想デスクトップにあるか。</summary>
+    /// <summary>Checks whether a window belongs to the active virtual desktop.</summary>
     public static bool IsOnCurrentDesktop(IntPtr hwnd)
     {
         if (_manager == null || hwnd == IntPtr.Zero) return true;
@@ -66,9 +64,8 @@ public static class VirtualDesktopHelper
     }
 
     /// <summary>
-    /// 指定ウィンドウを現在の仮想デスクトップへ移動する。
-    /// フォアグラウンドウィンドウで現在のデスクトップIDを特定し、
-    /// 取得できない場合（空の新規デスクトップ等）は一時ウィンドウで補完する。
+    /// Moves a window to the active virtual desktop.
+    /// Uses the foreground window to resolve the desktop ID and a temporary window as fallback.
     /// </summary>
     public static void MoveToCurrentDesktop(IntPtr hwnd)
     {
@@ -86,7 +83,7 @@ public static class VirtualDesktopHelper
     {
         if (_manager == null) return Guid.Empty;
 
-        // 1. フォアグラウンドウィンドウから現在のデスクトップIDを取得
+        // Resolve the active desktop from the foreground window.
         var fg = GetForegroundWindow();
         if (fg != IntPtr.Zero)
         {
@@ -98,8 +95,8 @@ public static class VirtualDesktopHelper
             catch { }
         }
 
-        // 2. 空の新規デスクトップの場合: 一時ポップアップウィンドウを作成してIDを取得
-        //    新規作成されたウィンドウは常に現在のアクティブデスクトップに割り当てられる
+        // An empty new desktop has no foreground window, so create a temporary popup.
+        // Newly created windows always belong to the active desktop.
         var probe = CreateWindowEx(0, "STATIC", null, WS_POPUP,
             -1, -1, 1, 1, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
         if (probe != IntPtr.Zero)

@@ -1,8 +1,8 @@
 <Window x:Class="UsageBeacon.Views.LoginWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ログイン"
-        Width="300"
+        Title="UsageBeacon"
+        Width="360"
         SizeToContent="Height"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -125,7 +125,6 @@
 
             <!-- Fallback: copy command -->
             <Button x:Name="CopyCommandBtn"
-                    Content="コマンドをコピー（自分のターミナルで実行）"
                     Style="{StaticResource GhostBtn}"
                     HorizontalAlignment="Stretch"
                     Click="CopyCommand_Click"
@@ -142,10 +141,10 @@
 
             <!-- Footer -->
             <Grid>
-                <Button Content="キャンセル" Style="{StaticResource GhostBtn}"
+                <Button x:Name="CancelBtn" Style="{StaticResource GhostBtn}"
                         HorizontalAlignment="Left"
                         Click="Cancel_Click"/>
-                <Button x:Name="DoneBtn" Content="ログイン完了"
+                <Button x:Name="DoneBtn"
                         Style="{StaticResource PrimaryBtn}"
                         HorizontalAlignment="Right"
                         IsEnabled="False"

@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Windows;
 using System.Windows.Forms;
+using UsageBeacon.Localization;
 using UsageBeacon.Models;
 using UsageBeacon.Services;
 using UsageBeacon.Utilities;
@@ -25,6 +26,9 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        var settingsStore = new AppSettingsStore();
+        LocalizationService.SetLanguage(settingsStore.Load().UiLanguage);
 
         var instanceMutex = new Mutex(initiallyOwned: true, @"Local\UsageBeacon", out var isFirstInstance);
         if (!isFirstInstance)
@@ -52,9 +56,9 @@ public partial class App : System.Windows.Application
 
         DispatcherUnhandledException += (_, ex) =>
         {
-            // フルスタック（ファイルパス等の内部情報を含む）は表示せず、要約のみ出す。
+            // Show only the exception summary because a full stack can expose local paths.
             System.Windows.MessageBox.Show(ex.Exception.Message,
-                "UsageBeacon - 起動エラー",
+                LocalizationService.Get("AppStartupErrorTitle"),
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Error);
             ex.Handled = true;
@@ -63,16 +67,16 @@ public partial class App : System.Windows.Application
 
         try
         {
-            _vm = new UsageViewModel();
+            _vm = new UsageViewModel(settingsStore: settingsStore);
             _targetScreenIndex = ResolveSavedScreenIndex(_vm.MonitorDeviceName);
             _vm.MonitorDeviceName = System.Windows.Forms.Screen.AllScreens[_targetScreenIndex].DeviceName;
 
-            // ── コンパクトウィジェット（常時表示）
+            // Compact widget that remains visible next to the taskbar.
             _widget = new TaskbarWidget(_vm, _targetScreenIndex);
             _widget.PopupToggleRequested += TogglePopup;
             _widget.Show();
 
-            // ── 詳細ポップアップ（クリックで開閉）
+            // Detail popup toggled by the widget.
             _popup = new UsagePopupWindow(_vm);
             _popup.MonitorSwitchRequested += CycleMonitor;
             _popup.PlacementSwitchRequested += ToggleWidgetPlacement;
@@ -84,7 +88,7 @@ public partial class App : System.Windows.Application
                     PositionPopup();
             };
 
-            // フォーカスが外れたら自動で閉じる。
+            // Hide the popup when it loses focus.
             _popup.Deactivated += (_, _) =>
             {
                 if (_popup is not { IsVisible: true }) return;
@@ -92,7 +96,7 @@ public partial class App : System.Windows.Application
                 _popupHiddenAt = DateTime.UtcNow;
             };
 
-            // ── トレイアイコン（右クリックメニュー用）
+            // Tray icon and context menu.
             _tray = new NotifyIcon
             {
                 Visible     = true,
@@ -104,13 +108,14 @@ public partial class App : System.Windows.Application
 
             _tray.ShowBalloonTip(
                 timeout: 4000,
-                tipTitle: "UsageBeacon 起動中",
-                tipText: "タスクバー右端のウィジェットをクリックすると詳細が開きます。",
+                tipTitle: LocalizationService.Get("TrayRunningTitle"),
+                tipText: LocalizationService.Get("TrayRunningText"),
                 tipIcon: ToolTipIcon.Info);
 
             _vm.SnapshotChanged += UpdateTrayIcon;
+            LocalizationService.LanguageChanged += OnLanguageChanged;
 
-            // 初回フェッチ完了後に一度だけ、ログイン確認→ポップアップ自動表示を行う。
+            // Check sign-in once after the first fetch, then show the popup.
             var loginChecked = false;
             _vm.SnapshotChanged += () =>
             {
@@ -131,19 +136,19 @@ public partial class App : System.Windows.Application
         catch (Exception ex)
         {
             System.Windows.MessageBox.Show(ex.Message,
-                "UsageBeacon - 起動エラー",
+                LocalizationService.Get("AppStartupErrorTitle"),
                 System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Error);
             Shutdown(1);
         }
     }
 
-    // ── 初回ログイン案内 ─────────────────────────────────────────────────
+    // First-run sign-in prompt.
 
     private void PromptLoginIfNeeded()
     {
         if (_vm!.LoginPrompted) return;
-        _vm.LoginPrompted = true; // 初回のみ。以降は手動ログインボタンを使う。
+        _vm.LoginPrompted = true;
 
         var snap = _vm.Snapshot;
         if (snap.ClaudeError?.Kind == DomainErrorKind.TokenMissing)
@@ -152,13 +157,13 @@ public partial class App : System.Windows.Application
             new LoginWindow("Codex", "codex login", _vm).ShowDialog();
     }
 
-    // ── ポップアップ開閉 ─────────────────────────────────────────────────
+    // Popup visibility and placement.
 
     private void TogglePopup()
     {
         if (_popup!.IsVisible) { _popup.Hide(); _popupHiddenAt = DateTime.UtcNow; return; }
 
-        // 直前に Deactivated で閉じられた直後は再表示しない（同一クリック操作の二重発火防止）
+        // Ignore the same click that caused Deactivated to hide the popup.
         if ((DateTime.UtcNow - _popupHiddenAt).TotalMilliseconds < 250) return;
 
         PositionPopup();
@@ -189,7 +194,7 @@ public partial class App : System.Windows.Application
         popupBottom = Math.Min(popupBottom, taskbarTop - 8);
         double top = popupBottom - popupH;
 
-        // 画面右端・上端の補正
+        // Keep the popup within the selected screen.
         if (left + _popup.Width > wa.Right / dpi) left = wa.Right / dpi - _popup.Width - 4;
         if (left < wa.Left  / dpi)                left = wa.Left  / dpi + 4;
         if (top  < wa.Top   / dpi)                top  = wa.Top   / dpi + 4;
@@ -244,17 +249,29 @@ public partial class App : System.Windows.Application
             PositionPopup();
     }
 
-    // ── トレイアイコン ───────────────────────────────────────────────────
+    // Tray icon.
 
     private ContextMenuStrip BuildContextMenu()
     {
         var menu = new ContextMenuStrip();
-        menu.Items.Add("詳細を表示/非表示",   null, (_, _) => Dispatcher.Invoke(TogglePopup));
-        menu.Items.Add("今すぐ更新",           null, (_, _) => _ = _vm!.RefreshAsync(force: true));
-        menu.Items.Add("モニター切替",         null, (_, _) => Dispatcher.Invoke(CycleMonitor));
+        menu.Items.Add(LocalizationService.Get("TrayShowHide"), null, (_, _) => Dispatcher.Invoke(TogglePopup));
+        menu.Items.Add(LocalizationService.Get("TrayRefreshNow"), null, (_, _) => _ = _vm!.RefreshAsync(force: true));
+        menu.Items.Add(LocalizationService.Get("TraySwitchMonitor"), null, (_, _) => Dispatcher.Invoke(CycleMonitor));
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("終了",                 null, (_, _) => Dispatcher.Invoke(() => Shutdown()));
+        menu.Items.Add(LocalizationService.Get("CommonExit"), null, (_, _) => Dispatcher.Invoke(() => Shutdown()));
         return menu;
+    }
+
+    private void OnLanguageChanged()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (_tray == null) return;
+            var previousMenu = _tray.ContextMenuStrip;
+            _tray.ContextMenuStrip = BuildContextMenu();
+            previousMenu?.Dispose();
+            _tray.Text = BuildTooltip();
+        });
     }
 
     private void OnTrayClick(object? sender, MouseEventArgs e)
@@ -287,18 +304,29 @@ public partial class App : System.Windows.Application
         if (snap == null) return "UsageBeacon";
         var sb = new System.Text.StringBuilder("UsageBeacon");
         var cu = snap.ClaudeUsage;
-        if (cu?.FiveHour is { } cf)       sb.Append($"\nClaude 5h: {cf.Percent}%");
-        else if (cu?.Weekly is { } cw)    sb.Append($"\nClaude 7d: {cw.Percent}%");
+        if (cu?.FiveHour is { } cf)
+            sb.Append($"\n{LocalizationService.Format("TrayClaudeFiveHour", cf.Percent)}");
+        else if (cu?.Weekly is { } cw)
+            sb.Append($"\n{LocalizationService.Format("TrayClaudeWeekly", cw.Percent)}");
         var xu = snap.CodexUsage;
-        if (xu?.FiveHour is { } xf)       sb.Append($"\nCodex  5h: {xf.Percent}%");
-        else if (xu?.Weekly is { } xw)    sb.Append($"\nCodex  7d: {xw.Percent}%");
-        if (snap.FetchedAt > DateTime.MinValue)    sb.Append($"\n更新: {snap.FetchedAt:HH:mm:ss}");
+        if (xu?.FiveHour is { } xf)
+            sb.Append($"\n{LocalizationService.Format("TrayCodexFiveHour", xf.Percent)}");
+        else if (xu?.Weekly is { } xw)
+            sb.Append($"\n{LocalizationService.Format("TrayCodexWeekly", xw.Percent)}");
+        if (snap.FetchedAt > DateTime.MinValue)
+        {
+            sb.Append('\n');
+            sb.Append(LocalizationService.Format(
+                "TrayUpdated",
+                snap.FetchedAt.ToString("T", LocalizationService.Culture)));
+        }
         return sb.ToString();
     }
 
     protected override async void OnExit(ExitEventArgs e)
     {
         _pollCts?.Cancel();
+        LocalizationService.LanguageChanged -= OnLanguageChanged;
         _tray?.Dispose();
         _prevIcon?.Dispose();
         if (_vm != null) await _vm.DisposeAsync();

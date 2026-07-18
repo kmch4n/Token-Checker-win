@@ -7,7 +7,7 @@ using System.Windows.Forms;
 namespace UsageBeacon.Utilities;
 
 /// <summary>
-/// タスクバーと通知領域の位置・サイズを Windows API から取得する。
+/// Reads taskbar and notification-area geometry through Windows APIs.
 /// </summary>
 public static class TaskbarPosition
 {
@@ -26,10 +26,10 @@ public static class TaskbarPosition
         double TaskbarTop,    double TaskbarLeft,
         double TaskbarBottom, double TaskbarRight,
         double TaskbarHeight,
-        double NotifyLeft,     // 通知領域の左端 X (WPF 論理ピクセル)
-        double? WidgetsRight,  // 天気/ウィジェット ボタンの右端 X
-        double? ContentLeft,   // 中央側タスクバー項目の左端 X
-        double? ContentRight); // 中央側タスクバー項目の右端 X
+        double NotifyLeft,     // Notification area's left edge in WPF logical pixels.
+        double? WidgetsRight,  // Right edge of the weather/widgets area.
+        double? ContentLeft,   // Left edge of centered taskbar items.
+        double? ContentRight); // Right edge of centered taskbar items.
 
     public static Info? Get(int screenIndex = 0)
     {
@@ -40,13 +40,13 @@ public static class TaskbarPosition
 
         if (!GetWindowRect(taskbar, out var tb)) return null;
 
-        // タスクバーが自動非表示のとき幅か高さが 4px 以下になる。
-        // この場合は null を返して PositionAtScreenEdge フォールバックを使わせる。
+        // An auto-hidden taskbar can be four pixels or smaller.
+        // Return null so the caller can fall back to screen-edge placement.
         if (tb.Bottom - tb.Top <= 4 || tb.Right - tb.Left <= 4) return null;
 
-        // 通知領域 (TrayNotifyWnd) の左端を取得 → ウィジェットをその左に置く
+        // Place the widget to the left of the notification area.
         var notify = FindWindowEx(taskbar, IntPtr.Zero, "TrayNotifyWnd", null);
-        int notifyLeft = tb.Right;                 // 見つからない場合は右端で代用
+        int notifyLeft = tb.Right;
         if (notify != IntPtr.Zero && GetWindowRect(notify, out var nr))
             notifyLeft = nr.Left;
 
@@ -125,16 +125,24 @@ public static class TaskbarPosition
                 TreeScope.Descendants,
                 new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button));
 
+            double? rightmostLeft = null;
+            double? rightmostEdge = null;
             foreach (AutomationElement button in buttons)
             {
-                var name = button.Current.Name;
                 var rect = button.Current.BoundingRectangle;
-                if (name.StartsWith("時計", StringComparison.Ordinal) &&
-                    !rect.IsEmpty &&
-                    rect.Top >= taskbarRect.Top &&
-                    rect.Bottom <= taskbarRect.Bottom)
-                    return rect.Left / dpi;
+                if (rect.IsEmpty ||
+                    rect.Top < taskbarRect.Top ||
+                    rect.Bottom > taskbarRect.Bottom ||
+                    rect.Left < taskbarRect.Left + (taskbarRect.Right - taskbarRect.Left) / 2.0)
+                    continue;
+
+                if (rightmostEdge is null || rect.Right > rightmostEdge)
+                {
+                    rightmostEdge = rect.Right;
+                    rightmostLeft = rect.Left / dpi;
+                }
             }
+            return rightmostLeft;
         }
         catch { }
         return null;

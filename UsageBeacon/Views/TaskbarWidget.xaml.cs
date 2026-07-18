@@ -52,24 +52,23 @@ public partial class TaskbarWidget : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        // ウィジェットはタスクバーに溶け込ませるため、DWM 効果は適用しない。
-        // AllowsTransparency=True のレイヤードウィンドウにアクリルを掛けると
-        // クリック時の再描画でコンテンツが消える競合が起きるため。
+        // Do not apply DWM effects because the widget must blend into the taskbar.
+        // Acrylic on an AllowsTransparency layered window can lose content during click redraws.
         SnapToTaskbar(_screenIndex, _vm.WidgetPlacement);
 
-        // 全仮想デスクトップに固定（SetPropW が有効な環境ではポーリング不要になる）
+        // Pin to every virtual desktop. SetPropW avoids polling when supported.
         var initialHwnd = new WindowInteropHelper(this).Handle;
         VirtualDesktopHelper.PinToAllDesktops(initialHwnd);
 
-        // タスクバーが前面に来てウィジェットを覆うため、定期的に最前面を再設定する。
-        // 仮想デスクトップの切り替えも検知し、現在のデスクトップへ追従する。
+        // Reassert topmost because the taskbar can otherwise cover the widget.
+        // Also follow virtual desktop changes.
         _topmostTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _topmostTimer.Tick += (_, _) =>
         {
             var hwnd = new WindowInteropHelper(this).Handle;
             if (!VirtualDesktopHelper.IsOnCurrentDesktop(hwnd))
             {
-                // 仮想デスクトップが切り替わった → 現在のデスクトップへ移動して再表示
+                // Move to the active desktop and show again after a desktop change.
                 VirtualDesktopHelper.MoveToCurrentDesktop(hwnd);
             }
             ShowWindow(hwnd, SW_SHOWNA);
@@ -89,7 +88,7 @@ public partial class TaskbarWidget : Window
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOREDRAW);
     }
 
-    // ── タスクバー隣接配置 ────────────────────────────────────────────────
+    // Taskbar-adjacent placement.
 
     public void SnapToTaskbar(int screenIndex, WidgetPlacement placement)
     {
@@ -152,7 +151,7 @@ public partial class TaskbarWidget : Window
         using var g = System.Drawing.Graphics.FromHwnd(IntPtr.Zero);
         var dpi = g.DpiX / 96.0;
 
-        // タスクバー相当の高さを推定（プライマリから取得できる場合は利用）
+        // Estimate taskbar height, using the primary taskbar when available.
         double tbHeight = TaskbarPosition.Get()?.TaskbarHeight ?? 48 / dpi;
         Height = tbHeight;
         ApplyDisplayMode(WideWidth);
@@ -163,7 +162,7 @@ public partial class TaskbarWidget : Window
         Top    = screen.Bounds.Bottom / dpi - tbHeight;
     }
 
-    // ── ラベル更新 ────────────────────────────────────────────────────────
+    // Label updates.
 
     private void UpdateLabels()
     {
@@ -215,7 +214,7 @@ public partial class TaskbarWidget : Window
                              : MediaColor.FromRgb(0xF4, 0x43, 0x36));
     }
 
-    // ── クリックで詳細ポップアップを開閉 ─────────────────────────────────
+    // Toggle the detail popup on click.
 
     private void Root_Click(object sender, MouseButtonEventArgs e)
         => PopupToggleRequested?.Invoke();

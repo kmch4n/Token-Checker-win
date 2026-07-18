@@ -4,7 +4,7 @@ using MediaColor = System.Windows.Media.Color;
 
 namespace UsageBeacon.Controls;
 
-// 基底クラスは XAML 側で定義済み（System.Windows.Controls.UserControl）
+// The base class is declared in XAML as System.Windows.Controls.UserControl.
 public partial class UsageBar
 {
     public static readonly DependencyProperty ValueProperty =
