@@ -1,0 +1,82 @@
+name: Bug report
+description: Report reproducible incorrect behavior in UsageBeacon
+title: "[Bug]: "
+labels: []
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thank you for helping improve UsageBeacon. Do not include credentials, access tokens, or other secrets. Report security vulnerabilities through the private security channel instead.
+    - type: checkboxes
+      id: preflight
+      attributes:
+          label: Before submitting
+          options:
+              - label: I searched existing issues and did not find a duplicate.
+                required: true
+              - label: I removed credentials, tokens, and other sensitive data from this report.
+                required: true
+    - type: input
+      id: version
+      attributes:
+          label: UsageBeacon version
+          description: Provide the release version or commit hash.
+          placeholder: "v0.1.0 or abc1234"
+      validations:
+          required: true
+    - type: input
+      id: windows-version
+      attributes:
+          label: Windows version
+          placeholder: "Windows 11 24H2, build 26100"
+      validations:
+          required: true
+    - type: dropdown
+      id: installation
+      attributes:
+          label: Installation method
+          options:
+              - Release executable
+              - Source build
+      validations:
+          required: true
+    - type: dropdown
+      id: service
+      attributes:
+          label: Affected service
+          options:
+              - Claude Code
+              - Codex
+              - Both
+              - Not service-specific
+      validations:
+          required: true
+    - type: textarea
+      id: description
+      attributes:
+          label: Description
+          description: Explain what happened and how it affected UsageBeacon.
+      validations:
+          required: true
+    - type: textarea
+      id: reproduction
+      attributes:
+          label: Steps to reproduce
+          placeholder: |
+              1. Start UsageBeacon...
+              2. Open...
+              3. Observe...
+      validations:
+          required: true
+    - type: textarea
+      id: expected
+      attributes:
+          label: Expected behavior
+      validations:
+          required: true
+    - type: textarea
+      id: diagnostics
+      attributes:
+          label: Additional context
+          description: Add sanitized logs, screenshots, or other context. Remove usernames, local paths, credentials, and tokens.
+          render: shell

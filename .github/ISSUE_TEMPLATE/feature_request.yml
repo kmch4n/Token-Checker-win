@@ -1,0 +1,53 @@
+name: Feature request
+description: Suggest a focused improvement for UsageBeacon
+title: "[Feature]: "
+labels: []
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thank you for proposing an improvement. UsageBeacon is an independent, unofficial fork, so please describe the use case without implying upstream endorsement.
+    - type: checkboxes
+      id: preflight
+      attributes:
+          label: Before submitting
+          options:
+              - label: I searched existing issues and did not find a duplicate request.
+                required: true
+    - type: dropdown
+      id: area
+      attributes:
+          label: Area
+          options:
+              - Taskbar widget or popup
+              - Claude Code integration
+              - Codex integration
+              - Windows integration
+              - Documentation
+              - Other
+      validations:
+          required: true
+    - type: textarea
+      id: problem
+      attributes:
+          label: Problem or use case
+          description: Describe the user need rather than only the proposed implementation.
+      validations:
+          required: true
+    - type: textarea
+      id: proposal
+      attributes:
+          label: Proposed solution
+          description: Explain the behavior you would like UsageBeacon to provide.
+      validations:
+          required: true
+    - type: textarea
+      id: alternatives
+      attributes:
+          label: Alternatives considered
+          description: Note current workarounds or other approaches you considered.
+    - type: textarea
+      id: context
+      attributes:
+          label: Additional context
+          description: Add mockups, examples, or related links. Do not include credentials or tokens.
