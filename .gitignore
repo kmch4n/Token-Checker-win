@@ -21,3 +21,8 @@ Desktop.ini
 *.pdb
 *.exe
 
+# Local agent state
+.claude/settings.local.json
+.codex/config.local.toml
+.memory/local/
+
