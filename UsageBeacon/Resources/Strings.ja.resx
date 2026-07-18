@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="AppStartupErrorTitle" xml:space="preserve"><value>UsageBeacon - 起動エラー</value></data>
+  <data name="LanguageSystemDefault" xml:space="preserve"><value>システム既定</value></data>
+  <data name="LanguageNativeName" xml:space="preserve"><value>日本語</value></data>
+  <data name="CommonLogin" xml:space="preserve"><value>ログイン</value></data>
+  <data name="CommonCancel" xml:space="preserve"><value>キャンセル</value></data>
+  <data name="CommonLoginComplete" xml:space="preserve"><value>ログイン完了</value></data>
+  <data name="CommonExit" xml:space="preserve"><value>終了</value></data>
+  <data name="CommonConfirm" xml:space="preserve"><value>確認</value></data>
+  <data name="TooltipRefreshNow" xml:space="preserve"><value>今すぐ更新</value></data>
+  <data name="TooltipClose" xml:space="preserve"><value>閉じる</value></data>
+  <data name="StatusLoading" xml:space="preserve"><value>取得中…</value></data>
+  <data name="UsageFiveHour" xml:space="preserve"><value>5時間</value></data>
+  <data name="UsageWeekly" xml:space="preserve"><value>週次 (7日)</value></data>
+  <data name="UsageWeeklySonnet" xml:space="preserve"><value>週次 (Sonnet)</value></data>
+  <data name="ErrorWaitingTitle" xml:space="preserve"><value>⏳ 更新待機中</value></data>
+  <data name="ErrorFailureTitle" xml:space="preserve"><value>⚠ 取得失敗</value></data>
+  <data name="UsageFetched" xml:space="preserve"><value>取得: {0} / {1}</value></data>
+  <data name="UsageFetchedUnknown" xml:space="preserve"><value>取得時刻不明（旧キャッシュ）</value></data>
+  <data name="SourceUsageApi" xml:space="preserve"><value>使用量API</value></data>
+  <data name="SourceCache" xml:space="preserve"><value>キャッシュ</value></data>
+  <data name="RetryNextAutomatic" xml:space="preserve"><value>次回の自動取得: {0}</value></data>
+  <data name="SettingsPollingInterval" xml:space="preserve"><value>更新間隔</value></data>
+  <data name="SettingsPollingNote" xml:space="preserve"><value>Claude APIは最短30分 / Codexは選択した間隔</value></data>
+  <data name="SettingsStartAtLogin" xml:space="preserve"><value>ログイン時に自動起動</value></data>
+  <data name="SettingsTransparency" xml:space="preserve"><value>背景透明度</value></data>
+  <data name="SettingsMonitor" xml:space="preserve"><value>表示モニター</value></data>
+  <data name="SettingsPosition" xml:space="preserve"><value>表示位置</value></data>
+  <data name="SettingsLanguage" xml:space="preserve"><value>言語</value></data>
+  <data name="MonitorSwitch" xml:space="preserve"><value>⇄ 切替</value></data>
+  <data name="MonitorIndex" xml:space="preserve"><value>⇄ {0}/{1}</value></data>
+  <data name="PlacementRight" xml:space="preserve"><value>右</value></data>
+  <data name="PlacementLeft" xml:space="preserve"><value>左</value></data>
+  <data name="FooterLastChecked" xml:space="preserve"><value>最終確認: {0}</value></data>
+  <data name="QuitPrompt" xml:space="preserve"><value>UsageBeaconを終了しますか？</value></data>
+  <data name="IntegrationEnable" xml:space="preserve"><value>連携</value></data>
+  <data name="IntegrationDisable" xml:space="preserve"><value>連携解除</value></data>
+  <data name="IntegrationTitle" xml:space="preserve"><value>Claude Code連携</value></data>
+  <data name="IntegrationEnablePrompt" xml:space="preserve"><value>Claude Codeのstatus lineにUsageBeacon bridgeを追加しますか？既存のstatus lineは保持され、bridge実行後にそのまま呼び出されます。</value></data>
+  <data name="IntegrationChangedWarning" xml:space="preserve"><value>Claude Codeの設定が連携後に変更されています。現在の設定を保護するため、自動解除しませんでした。</value></data>
+  <data name="IntegrationFailed" xml:space="preserve"><value>Claude Code連携の更新に失敗しました。&#xA;{0}</value></data>
+  <data name="DurationSeconds" xml:space="preserve"><value>{0}秒</value></data>
+  <data name="DurationMinutes" xml:space="preserve"><value>{0}分</value></data>
+  <data name="TransparencyOpaque" xml:space="preserve"><value>0% (不透明)</value></data>
+  <data name="TransparencyLight" xml:space="preserve"><value>40% (薄い)</value></data>
+  <data name="ResetNoRecentUsage" xml:space="preserve"><value>直近5時間の使用なし</value></data>
+  <data name="ResetSoon" xml:space="preserve"><value>まもなくリセット</value></data>
+  <data name="ResetInDaysHours" xml:space="preserve"><value>あと{0}日{1}時間 ({2}リセット)</value></data>
+  <data name="ResetInHoursMinutes" xml:space="preserve"><value>あと{0}時間{1}分 ({2}リセット)</value></data>
+  <data name="ResetInMinutes" xml:space="preserve"><value>あと{0}分 ({1}リセット)</value></data>
+  <data name="LoginWindowTitle" xml:space="preserve"><value>ログイン</value></data>
+  <data name="LoginTitle" xml:space="preserve"><value>{0} ログイン</value></data>
+  <data name="LoginOpenBrowser" xml:space="preserve"><value>ブラウザでログイン ({0})</value></data>
+  <data name="LoginDescription" xml:space="preserve"><value>「ブラウザでログイン」を押すとターミナルが開きます。&#xA;CLIをWSLにのみインストールしている場合は「WSL」ボタンをご利用ください。&#xA;ブラウザが開かない場合は、コマンドをコピーしてターミナルで実行してください。&#xA;ログイン完了後、このウィンドウは自動的に閉じます。</value></data>
+  <data name="LoginCopyCommand" xml:space="preserve"><value>コマンドをコピー（自分のターミナルで実行）</value></data>
+  <data name="LoginTerminalFailed" xml:space="preserve"><value>ターミナルを開けませんでした。コマンドをコピーしてターミナルで実行してください。</value></data>
+  <data name="LoginBrowserPending" xml:space="preserve"><value>ブラウザでログインしてください。完了すると自動的に閉じます。</value></data>
+  <data name="LoginWslFailed" xml:space="preserve"><value>WSLを開けませんでした。WSL distributionがインストールされているか確認してください。</value></data>
+  <data name="LoginWslPending" xml:space="preserve"><value>WSLターミナルでログインしてください。完了すると自動的に閉じます。</value></data>
+  <data name="LoginCommandCopied" xml:space="preserve"><value>コピーしました: {0}&#xA;ターミナルに貼り付けて実行してください。</value></data>
+  <data name="LoginSucceeded" xml:space="preserve"><value>✓ ログイン完了！ウィンドウを閉じます...</value></data>
+  <data name="ErrorTokenMissing" xml:space="preserve"><value>Claude Codeの認証情報が見つかりません。`claude auth login`でログインしてください。</value></data>
+  <data name="ErrorAnthropicUnauthorized" xml:space="preserve"><value>Claudeの認証が期限切れです。`claude auth login`で再ログインしてください。</value></data>
+  <data name="ErrorAnthropicRateLimitedWithDelay" xml:space="preserve"><value>Claudeはログイン済みです。使用量APIの制限中のため、約{0}分後に再取得します。</value></data>
+  <data name="ErrorAnthropicRateLimited" xml:space="preserve"><value>Claudeはログイン済みです。使用量APIの制限中のため、再取得を待機します。</value></data>
+  <data name="ErrorAnthropicHttp" xml:space="preserve"><value>Anthropic APIエラー (status {0})</value></data>
+  <data name="ErrorCodexNotFound" xml:space="preserve"><value>Codex CLIが見つかりません。`npm i -g @openai/codex`を実行してください。</value></data>
+  <data name="ErrorCodexProcessExited" xml:space="preserve"><value>Codex app-serverが終了しました。再起動を試みます。</value></data>
+  <data name="ErrorCodexRpc" xml:space="preserve"><value>Codex RPCエラー: {0}</value></data>
+  <data name="ErrorCodexUnauthorized" xml:space="preserve"><value>Codexの認証が切れています。`codex login`で再ログインしてください。</value></data>
+  <data name="ErrorDecoding" xml:space="preserve"><value>レスポンスのデコードに失敗: {0}</value></data>
+  <data name="ErrorTimeout" xml:space="preserve"><value>通信がタイムアウトしました。</value></data>
+  <data name="ErrorNetwork" xml:space="preserve"><value>ネットワークエラー: {0}</value></data>
+  <data name="TrayRunningTitle" xml:space="preserve"><value>UsageBeacon起動中</value></data>
+  <data name="TrayRunningText" xml:space="preserve"><value>タスクバー右端のウィジェットをクリックすると詳細が開きます。</value></data>
+  <data name="TrayShowHide" xml:space="preserve"><value>詳細を表示/非表示</value></data>
+  <data name="TrayRefreshNow" xml:space="preserve"><value>今すぐ更新</value></data>
+  <data name="TraySwitchMonitor" xml:space="preserve"><value>モニター切替</value></data>
+  <data name="TrayUpdated" xml:space="preserve"><value>更新: {0}</value></data>
+  <data name="TrayClaudeFiveHour" xml:space="preserve"><value>Claude 5h: {0}%</value></data>
+  <data name="TrayClaudeWeekly" xml:space="preserve"><value>Claude 7d: {0}%</value></data>
+  <data name="TrayCodexFiveHour" xml:space="preserve"><value>Codex 5h: {0}%</value></data>
+  <data name="TrayCodexWeekly" xml:space="preserve"><value>Codex 7d: {0}%</value></data>
+</root>

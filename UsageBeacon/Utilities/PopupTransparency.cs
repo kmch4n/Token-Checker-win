@@ -25,16 +25,16 @@ public static class PopupTransparencyExtensions
         _                           => 0xE6,
     };
 
-    public static string ToLabel(this PopupTransparency transparency) => transparency switch
+    public static int ToPercent(this PopupTransparency transparency) => transparency switch
     {
-        PopupTransparency.Percent0  => "0% (不透明)",
-        PopupTransparency.Percent5  => "5%",
-        PopupTransparency.Percent10 => "10%",
-        PopupTransparency.Percent15 => "15%",
-        PopupTransparency.Percent20 => "20%",
-        PopupTransparency.Percent30 => "30%",
-        PopupTransparency.Percent40 => "40% (薄い)",
-        _                           => transparency.ToString(),
+        PopupTransparency.Percent0  => 0,
+        PopupTransparency.Percent5  => 5,
+        PopupTransparency.Percent10 => 10,
+        PopupTransparency.Percent15 => 15,
+        PopupTransparency.Percent20 => 20,
+        PopupTransparency.Percent30 => 30,
+        PopupTransparency.Percent40 => 40,
+        _                            => 20,
     };
 
     public static readonly PopupTransparency Default = PopupTransparency.Percent20;

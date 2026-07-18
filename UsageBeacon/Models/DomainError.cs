@@ -19,46 +19,57 @@ public sealed class DomainError : Exception
 {
     public DomainErrorKind Kind { get; }
     public double? RetryAfterSeconds { get; }
+    public int? StatusCode { get; }
+    public string? Detail { get; }
 
-    private DomainError(DomainErrorKind kind, string message, double? retryAfterSeconds = null) : base(message)
+    private DomainError(
+        DomainErrorKind kind,
+        string message,
+        double? retryAfterSeconds = null,
+        int? statusCode = null,
+        string? detail = null) : base(message)
     {
         Kind = kind;
         RetryAfterSeconds = retryAfterSeconds;
+        StatusCode = statusCode;
+        Detail = detail;
     }
 
     public static DomainError TokenMissing() => new(DomainErrorKind.TokenMissing,
-        "Claude Code の認証情報が見つかりません。`claude auth login` でログインしてください。");
+        "Claude Code credentials were not found.");
 
     public static DomainError AnthropicUnauthorized() => new(DomainErrorKind.AnthropicUnauthorized,
-        "Claude の認証が期限切れです。`claude auth login` で再ログインしてください。");
+        "Claude authentication has expired.");
 
     public static DomainError AnthropicRateLimited(double? retryAfterSecs) => new(DomainErrorKind.AnthropicRateLimited,
-        retryAfterSecs.HasValue
-            ? $"Claude はログイン済みです。使用量 API の制限中のため、約 {Math.Max(1, (int)Math.Ceiling(retryAfterSecs.Value / 60))} 分後に再取得します。"
-            : "Claude はログイン済みです。使用量 API の制限中のため、再取得を待機します。",
+        "The Claude usage API is rate limited.",
         retryAfterSecs);
 
     public static DomainError AnthropicHttp(int status) => new(DomainErrorKind.AnthropicHttp,
-        $"Anthropic API エラー (status {status})");
+        $"Anthropic API error (status {status}).",
+        statusCode: status);
 
     public static DomainError CodexNotFound() => new(DomainErrorKind.CodexNotFound,
-        "Codex CLI が見つかりません。`npm i -g @openai/codex` を実行してください。");
+        "Codex CLI was not found.");
 
     public static DomainError CodexProcessExited() => new(DomainErrorKind.CodexProcessExited,
-        "codex app-server が終了しました。再起動を試みます。");
+        "The Codex app-server exited.");
 
     public static DomainError CodexRpcError(string msg) => new(DomainErrorKind.CodexRpcError,
-        $"Codex RPC エラー: {msg}");
+        $"Codex RPC error: {msg}",
+        detail: msg);
 
     public static DomainError CodexUnauthorized() => new(DomainErrorKind.CodexUnauthorized,
-        "Codex の認証が切れています。`codex login` で再ログインしてください。");
+        "Codex authentication has expired.");
 
     public static DomainError Decoding(string detail) => new(DomainErrorKind.Decoding,
-        $"レスポンスのデコードに失敗: {detail}");
+        $"Response decoding failed: {detail}",
+        detail: detail);
 
     public static DomainError Timeout() => new(DomainErrorKind.Timeout,
-        "通信がタイムアウトしました。");
+        "The request timed out.");
 
     public static DomainError Network(string detail) => new(DomainErrorKind.Network,
-        $"ネットワークエラー: {detail}");
+        $"Network error: {detail}",
+        detail: detail);
 }

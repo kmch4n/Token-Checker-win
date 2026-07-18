@@ -11,6 +11,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Resources\tray.ico</ApplicationIcon>
     <Platforms>AnyCPU</Platforms>
+    <NeutralLanguage>en</NeutralLanguage>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Resources\tray.ico" />

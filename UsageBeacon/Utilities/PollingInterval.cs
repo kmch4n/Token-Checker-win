@@ -15,17 +15,6 @@ public static class PollingIntervalExtensions
     public static TimeSpan ToTimeSpan(this PollingInterval p)
         => TimeSpan.FromSeconds((int)p);
 
-    public static string ToLabel(this PollingInterval p) => p switch
-    {
-        PollingInterval.Sec30 => "30秒",
-        PollingInterval.Min1  => "1分",
-        PollingInterval.Min2  => "2分",
-        PollingInterval.Min3  => "3分",
-        PollingInterval.Min5  => "5分",
-        PollingInterval.Min10 => "10分",
-        _                     => p.ToString(),
-    };
-
     public static readonly PollingInterval Default = PollingInterval.Min5;
 
     public static readonly PollingInterval[] All =

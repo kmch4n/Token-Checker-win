@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using UsageBeacon.Localization;
 using UsageBeacon.Models;
 using UsageBeacon.Providers;
 using UsageBeacon.Services;
@@ -16,6 +17,7 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
 
     private readonly IUsageProvider _claude;
     private readonly IUsageProvider _codex;
+    private readonly AppSettingsStore _settingsStore;
 
     private UsageSnapshot _snapshot = UsageSnapshot.Empty;
     private bool _isLoading;
@@ -25,6 +27,7 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
     private string? _monitorDeviceName;
     private bool _startupEnabled;
     private bool _loginPrompted;
+    private string _uiLanguage;
     private DateTime _claudeCooldownUntilUtc;
     private ServiceUsage? _lastClaudeUsage;
     private DateTime? _lastClaudeFetchedAtUtc;
@@ -103,7 +106,7 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
         }
     }
 
-    /// <summary>初回起動時のログイン自動案内を一度だけ出すためのフラグ。</summary>
+    /// <summary>Tracks whether the first-run sign-in prompt has been shown.</summary>
     public bool LoginPrompted
     {
         get => _loginPrompted;
@@ -123,17 +126,38 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
 
     public PollingInterval[] AllIntervals { get; } = PollingIntervalExtensions.All;
 
+    public string UiLanguage
+    {
+        get => _uiLanguage;
+        set
+        {
+            var normalized = LocalizationService.NormalizePreference(value);
+            if (_uiLanguage == normalized) return;
+            _uiLanguage = normalized;
+            LocalizationService.SetLanguage(normalized);
+            Notify();
+            SaveSettings();
+        }
+    }
+
     // ── Init ─────────────────────────────────────────────────────────────
 
-    public UsageViewModel(IUsageProvider? claude = null, IUsageProvider? codex = null)
+    public UsageViewModel(
+        IUsageProvider? claude = null,
+        IUsageProvider? codex = null,
+        AppSettingsStore? settingsStore = null)
     {
+        _settingsStore = settingsStore ?? new AppSettingsStore();
+        var settings = _settingsStore.Load();
         _claude          = claude ?? new ClaudeUsageProvider();
         _codex           = codex  ?? new CodexUsageProvider();
-        _pollingInterval = LoadSettings();
-        _widgetPlacement = LoadWidgetPlacement();
-        _popupTransparency = LoadPopupTransparency();
-        _monitorDeviceName = LoadMonitorDeviceName();
-        _loginPrompted   = LoadLoginPrompted();
+        _pollingInterval = ParsePollingInterval(settings.PollingInterval);
+        _widgetPlacement = ParseWidgetPlacement(settings.WidgetPlacement);
+        _popupTransparency = ParsePopupTransparency(settings.PopupTransparency);
+        _monitorDeviceName = settings.MonitorDeviceName;
+        _loginPrompted = settings.LoginPrompted;
+        _uiLanguage = LocalizationService.NormalizePreference(settings.UiLanguage);
+        LocalizationService.SetLanguage(_uiLanguage);
         try { StartupManager.MigrateLegacyRegistration(); } catch { }
         _startupEnabled  = StartupManager.IsEnabled;
         var claudeUsageCache = LoadClaudeUsageCache();
@@ -191,7 +215,7 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
 
     public async Task RefreshAsync(CancellationToken ct = default, bool force = false)
     {
-        // ポーリングと手動更新が同時に走り _snapshot / _lastClaudeUsage を競合させないよう直列化する。
+        // Serialize automatic and manual refreshes so they cannot race shared state.
         await _refreshGate.WaitAsync(ct);
         try
         {
@@ -260,7 +284,7 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
                     SaveClaudePollingState();
                 }
             }
-            // 一時的なエラー時は直前に取得できた値を表示し続ける（常に数字を出すため）。
+            // Keep the last successful value visible during transient failures.
             if (fetchClaude && cu != null)
             {
                 _lastClaudeUsage = cu;
@@ -308,9 +332,8 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
         catch (Exception   e)  { return (null, DomainError.Network(e.Message)); }
     }
 
-    // 直前値の表示継続が妥当な「一時的」エラーか。
-    // 未ログイン・CLI未検出は古い数字を出すと誤解を招くため対象外。
-    // CodexUnauthorized は再ログイン中も直前値を表示し続けるため一時的扱い。
+    // Missing credentials and a missing CLI must not show potentially misleading stale data.
+    // An expired Codex sign-in remains transient so the last value stays visible while signing in.
     private static bool IsTransient(DomainErrorKind kind) => kind is not (
         DomainErrorKind.TokenMissing or
         DomainErrorKind.AnthropicUnauthorized or
@@ -321,8 +344,6 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
 
     // ── Settings (JSON file in %AppData%\UsageBeacon) ───────────────────
 
-    private static readonly string SettingsPath = Path.Combine(
-        AppDataPaths.DirectoryPath, "settings.json");
     private static readonly string ClaudeUsageCachePath = Path.Combine(
         AppDataPaths.DirectoryPath, "claude-usage-cache.json");
     private static readonly string CodexUsageCachePath = Path.Combine(
@@ -330,7 +351,7 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
     private static readonly string ClaudePollingStatePath = Path.Combine(
         AppDataPaths.DirectoryPath, "claude-polling-state.json");
 
-    // 一時ファイルに書いてから置換することで、書き込み途中の電源断による 0 バイト破損を避ける。
+    // Replace through a temporary file to avoid leaving a zero-byte cache after an interrupted write.
     private static void AtomicWrite(string path, string content)
     {
         var tmp = path + ".tmp";
@@ -338,90 +359,34 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
         File.Move(tmp, path, overwrite: true);
     }
 
-    private static PollingInterval LoadSettings()
-    {
-        try
-        {
-            if (!File.Exists(SettingsPath)) return PollingIntervalExtensions.Default;
-            var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath));
-            if (doc.RootElement.TryGetProperty("pollingInterval", out var el) &&
-                el.TryGetInt32(out var raw) &&
-                Enum.IsDefined(typeof(PollingInterval), raw))
-                return raw < (int)PollingInterval.Min2 ? PollingInterval.Min2 : (PollingInterval)raw;
-        }
-        catch { }
-        return PollingIntervalExtensions.Default;
-    }
+    private static PollingInterval ParsePollingInterval(int raw)
+        => Enum.IsDefined(typeof(PollingInterval), raw) && raw >= (int)PollingInterval.Min2
+            ? (PollingInterval)raw
+            : PollingIntervalExtensions.Default;
 
-    private static WidgetPlacement LoadWidgetPlacement()
-    {
-        try
-        {
-            if (!File.Exists(SettingsPath)) return WidgetPlacement.Right;
-            var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath));
-            if (doc.RootElement.TryGetProperty("widgetPlacement", out var el) &&
-                Enum.TryParse<WidgetPlacement>(el.GetString(), out var placement))
-                return placement;
-        }
-        catch { }
-        return WidgetPlacement.Right;
-    }
+    private static WidgetPlacement ParseWidgetPlacement(string? value)
+        => Enum.TryParse<WidgetPlacement>(value, out var placement)
+            ? placement
+            : WidgetPlacement.Right;
 
-    private static PopupTransparency LoadPopupTransparency()
-    {
-        try
-        {
-            if (!File.Exists(SettingsPath)) return PopupTransparencyExtensions.Default;
-            var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath));
-            if (doc.RootElement.TryGetProperty("popupTransparency", out var el) &&
-                Enum.TryParse<PopupTransparency>(el.GetString(), out var transparency))
-                return transparency;
-        }
-        catch { }
-        return PopupTransparencyExtensions.Default;
-    }
-
-    private static string? LoadMonitorDeviceName()
-    {
-        try
-        {
-            if (!File.Exists(SettingsPath)) return null;
-            var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath));
-            if (doc.RootElement.TryGetProperty("monitorDeviceName", out var el))
-                return el.GetString();
-        }
-        catch { }
-        return null;
-    }
-
-    private static bool LoadLoginPrompted()
-    {
-        try
-        {
-            if (!File.Exists(SettingsPath)) return false;
-            var doc = JsonDocument.Parse(File.ReadAllText(SettingsPath));
-            if (doc.RootElement.TryGetProperty("loginPrompted", out var el) &&
-                el.ValueKind is JsonValueKind.True or JsonValueKind.False)
-                return el.GetBoolean();
-        }
-        catch { }
-        return false;
-    }
+    private static PopupTransparency ParsePopupTransparency(string? value)
+        => Enum.TryParse<PopupTransparency>(value, out var transparency)
+            ? transparency
+            : PopupTransparencyExtensions.Default;
 
     private void SaveSettings()
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
-            AtomicWrite(SettingsPath,
-                JsonSerializer.Serialize(new
-                {
-                    pollingInterval = (int)_pollingInterval,
-                    widgetPlacement = _widgetPlacement.ToString(),
-                    popupTransparency = _popupTransparency.ToString(),
-                    monitorDeviceName = _monitorDeviceName,
-                    loginPrompted = _loginPrompted,
-                }));
+            _settingsStore.Save(new AppSettings
+            {
+                PollingInterval = (int)_pollingInterval,
+                WidgetPlacement = _widgetPlacement.ToString(),
+                PopupTransparency = _popupTransparency.ToString(),
+                MonitorDeviceName = _monitorDeviceName,
+                LoginPrompted = _loginPrompted,
+                UiLanguage = _uiLanguage,
+            });
         }
         catch { }
     }

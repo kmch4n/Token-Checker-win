@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="AppStartupErrorTitle" xml:space="preserve"><value>UsageBeacon - Startup Error</value></data>
+  <data name="LanguageSystemDefault" xml:space="preserve"><value>System default</value></data>
+  <data name="LanguageNativeName" xml:space="preserve"><value>English</value></data>
+  <data name="CommonLogin" xml:space="preserve"><value>Sign in</value></data>
+  <data name="CommonCancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="CommonLoginComplete" xml:space="preserve"><value>Sign-in complete</value></data>
+  <data name="CommonExit" xml:space="preserve"><value>Exit</value></data>
+  <data name="CommonConfirm" xml:space="preserve"><value>Confirm</value></data>
+  <data name="TooltipRefreshNow" xml:space="preserve"><value>Refresh now</value></data>
+  <data name="TooltipClose" xml:space="preserve"><value>Close</value></data>
+  <data name="StatusLoading" xml:space="preserve"><value>Loading...</value></data>
+  <data name="UsageFiveHour" xml:space="preserve"><value>5 hours</value></data>
+  <data name="UsageWeekly" xml:space="preserve"><value>Weekly (7 days)</value></data>
+  <data name="UsageWeeklySonnet" xml:space="preserve"><value>Weekly (Sonnet)</value></data>
+  <data name="ErrorWaitingTitle" xml:space="preserve"><value>⏳ Waiting to refresh</value></data>
+  <data name="ErrorFailureTitle" xml:space="preserve"><value>⚠ Retrieval failed</value></data>
+  <data name="UsageFetched" xml:space="preserve"><value>Retrieved: {0} / {1}</value></data>
+  <data name="UsageFetchedUnknown" xml:space="preserve"><value>Retrieval time unknown (legacy cache)</value></data>
+  <data name="SourceUsageApi" xml:space="preserve"><value>Usage API</value></data>
+  <data name="SourceCache" xml:space="preserve"><value>Cache</value></data>
+  <data name="RetryNextAutomatic" xml:space="preserve"><value>Next automatic retrieval: {0}</value></data>
+  <data name="SettingsPollingInterval" xml:space="preserve"><value>Refresh interval</value></data>
+  <data name="SettingsPollingNote" xml:space="preserve"><value>Claude API: 30-minute minimum / Codex: selected interval</value></data>
+  <data name="SettingsStartAtLogin" xml:space="preserve"><value>Start at sign-in</value></data>
+  <data name="SettingsTransparency" xml:space="preserve"><value>Background transparency</value></data>
+  <data name="SettingsMonitor" xml:space="preserve"><value>Display monitor</value></data>
+  <data name="SettingsPosition" xml:space="preserve"><value>Display position</value></data>
+  <data name="SettingsLanguage" xml:space="preserve"><value>Language</value></data>
+  <data name="MonitorSwitch" xml:space="preserve"><value>⇄ Switch</value></data>
+  <data name="MonitorIndex" xml:space="preserve"><value>⇄ {0}/{1}</value></data>
+  <data name="PlacementRight" xml:space="preserve"><value>Right</value></data>
+  <data name="PlacementLeft" xml:space="preserve"><value>Left</value></data>
+  <data name="FooterLastChecked" xml:space="preserve"><value>Last checked: {0}</value></data>
+  <data name="QuitPrompt" xml:space="preserve"><value>Exit UsageBeacon?</value></data>
+  <data name="IntegrationEnable" xml:space="preserve"><value>Connect</value></data>
+  <data name="IntegrationDisable" xml:space="preserve"><value>Disconnect</value></data>
+  <data name="IntegrationTitle" xml:space="preserve"><value>Claude Code integration</value></data>
+  <data name="IntegrationEnablePrompt" xml:space="preserve"><value>Add the UsageBeacon bridge to the Claude Code status line? The existing status line will be preserved and called after the bridge runs.</value></data>
+  <data name="IntegrationChangedWarning" xml:space="preserve"><value>The Claude Code setting changed after integration was enabled. UsageBeacon did not disconnect automatically to avoid overwriting the current setting.</value></data>
+  <data name="IntegrationFailed" xml:space="preserve"><value>Failed to update Claude Code integration.&#xA;{0}</value></data>
+  <data name="DurationSeconds" xml:space="preserve"><value>{0} sec</value></data>
+  <data name="DurationMinutes" xml:space="preserve"><value>{0} min</value></data>
+  <data name="TransparencyOpaque" xml:space="preserve"><value>0% (opaque)</value></data>
+  <data name="TransparencyLight" xml:space="preserve"><value>40% (light)</value></data>
+  <data name="ResetNoRecentUsage" xml:space="preserve"><value>No usage in the current 5-hour window</value></data>
+  <data name="ResetSoon" xml:space="preserve"><value>Resets soon</value></data>
+  <data name="ResetInDaysHours" xml:space="preserve"><value>In {0}d {1}h (resets {2})</value></data>
+  <data name="ResetInHoursMinutes" xml:space="preserve"><value>In {0}h {1}m (resets {2})</value></data>
+  <data name="ResetInMinutes" xml:space="preserve"><value>In {0}m (resets {1})</value></data>
+  <data name="LoginWindowTitle" xml:space="preserve"><value>Sign in</value></data>
+  <data name="LoginTitle" xml:space="preserve"><value>{0} sign-in</value></data>
+  <data name="LoginOpenBrowser" xml:space="preserve"><value>Sign in with browser ({0})</value></data>
+  <data name="LoginDescription" xml:space="preserve"><value>Select "Sign in with browser" to open a terminal.&#xA;Use WSL if the CLI is installed only in WSL.&#xA;If the browser does not open, copy the command and run it in your terminal.&#xA;This window closes automatically after sign-in.</value></data>
+  <data name="LoginCopyCommand" xml:space="preserve"><value>Copy command (run in your terminal)</value></data>
+  <data name="LoginTerminalFailed" xml:space="preserve"><value>Could not open the terminal. Copy the command and run it in your terminal.</value></data>
+  <data name="LoginBrowserPending" xml:space="preserve"><value>Complete sign-in in your browser. This window will close automatically.</value></data>
+  <data name="LoginWslFailed" xml:space="preserve"><value>Could not open WSL. Confirm that a WSL distribution is installed.</value></data>
+  <data name="LoginWslPending" xml:space="preserve"><value>Complete sign-in in the WSL terminal. This window will close automatically.</value></data>
+  <data name="LoginCommandCopied" xml:space="preserve"><value>Copied: {0}&#xA;Paste and run it in your terminal.</value></data>
+  <data name="LoginSucceeded" xml:space="preserve"><value>✓ Sign-in complete. Closing the window...</value></data>
+  <data name="ErrorTokenMissing" xml:space="preserve"><value>Claude Code credentials were not found. Run `claude auth login` to sign in.</value></data>
+  <data name="ErrorAnthropicUnauthorized" xml:space="preserve"><value>Claude authentication has expired. Run `claude auth login` to sign in again.</value></data>
+  <data name="ErrorAnthropicRateLimitedWithDelay" xml:space="preserve"><value>Claude is signed in, but the usage API is rate limited. Retrying in about {0} minutes.</value></data>
+  <data name="ErrorAnthropicRateLimited" xml:space="preserve"><value>Claude is signed in, but the usage API is rate limited. Waiting to retry.</value></data>
+  <data name="ErrorAnthropicHttp" xml:space="preserve"><value>Anthropic API error (status {0})</value></data>
+  <data name="ErrorCodexNotFound" xml:space="preserve"><value>Codex CLI was not found. Run `npm i -g @openai/codex`.</value></data>
+  <data name="ErrorCodexProcessExited" xml:space="preserve"><value>The Codex app-server exited. UsageBeacon will try to restart it.</value></data>
+  <data name="ErrorCodexRpc" xml:space="preserve"><value>Codex RPC error: {0}</value></data>
+  <data name="ErrorCodexUnauthorized" xml:space="preserve"><value>Codex authentication has expired. Run `codex login` to sign in again.</value></data>
+  <data name="ErrorDecoding" xml:space="preserve"><value>Failed to decode the response: {0}</value></data>
+  <data name="ErrorTimeout" xml:space="preserve"><value>The request timed out.</value></data>
+  <data name="ErrorNetwork" xml:space="preserve"><value>Network error: {0}</value></data>
+  <data name="TrayRunningTitle" xml:space="preserve"><value>UsageBeacon is running</value></data>
+  <data name="TrayRunningText" xml:space="preserve"><value>Select the widget next to the taskbar notification area to open details.</value></data>
+  <data name="TrayShowHide" xml:space="preserve"><value>Show/hide details</value></data>
+  <data name="TrayRefreshNow" xml:space="preserve"><value>Refresh now</value></data>
+  <data name="TraySwitchMonitor" xml:space="preserve"><value>Switch monitor</value></data>
+  <data name="TrayUpdated" xml:space="preserve"><value>Updated: {0}</value></data>
+  <data name="TrayClaudeFiveHour" xml:space="preserve"><value>Claude 5h: {0}%</value></data>
+  <data name="TrayClaudeWeekly" xml:space="preserve"><value>Claude 7d: {0}%</value></data>
+  <data name="TrayCodexFiveHour" xml:space="preserve"><value>Codex 5h: {0}%</value></data>
+  <data name="TrayCodexWeekly" xml:space="preserve"><value>Codex 7d: {0}%</value></data>
+</root>
