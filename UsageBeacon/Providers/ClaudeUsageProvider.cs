@@ -166,6 +166,9 @@ public sealed class ClaudeUsageProvider : IUsageProvider
             if (latest.IsUsableAt(DateTimeOffset.UtcNow) &&
                 !HasSameOAuthState(latest, credential))
             {
+                // A replaced source credential also invalidates any pending
+                // update that was derived from the previous on-disk state.
+                _pendingUpdate = null;
                 _cachedCredential = latest;
                 return new CredentialLease(latest, WasRefreshed: false);
             }
