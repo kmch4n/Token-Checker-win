@@ -46,8 +46,24 @@ public partial class TaskbarWidget : Window
         _screenIndex = initialScreenIndex;
         InitializeComponent();
         Loaded += OnLoaded;
+        Closed += OnClosed;
         vm.SnapshotChanged += () => Dispatcher.Invoke(UpdateLabels);
         UpdateLabels();
+    }
+
+    private void OnClosed(object? sender, EventArgs e)
+    {
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        _topmostTimer?.Stop();
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        // Cached taskbar geometry is stale after a display change.
+        TaskbarPosition.Invalidate();
+        // SystemEvents raises this on a worker thread; window properties may
+        // only be touched on the dispatcher thread.
+        Dispatcher.BeginInvoke(() => PositionOnSelectedTaskbar(_vm.WidgetPlacement));
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -59,6 +75,9 @@ public partial class TaskbarWidget : Window
         // Pin to every virtual desktop. SetPropW avoids polling when supported.
         var initialHwnd = new WindowInteropHelper(this).Handle;
         VirtualDesktopHelper.PinToAllDesktops(initialHwnd);
+
+        // Refresh cached taskbar geometry when displays change.
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
         // Reassert topmost because the taskbar can otherwise cover the widget.
         // Also follow virtual desktop changes.

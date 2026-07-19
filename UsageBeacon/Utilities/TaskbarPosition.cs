@@ -31,6 +31,39 @@ public static class TaskbarPosition
         double? ContentLeft,   // Left edge of centered taskbar items.
         double? ContentRight); // Right edge of centered taskbar items.
 
+    // UI Automation scans of the taskbar are expensive cross-process queries,
+    // so their results are cached and refreshed only when the cheap window
+    // rectangles change, the cache is invalidated, or the entry grows stale.
+    private static readonly TimeSpan UiaRescanInterval = TimeSpan.FromSeconds(5);
+    private static readonly object CacheLock = new();
+    private static readonly Dictionary<IntPtr, UiaCacheEntry> UiaCache = new();
+
+    private sealed record UiaMeasurements(
+        double? WidgetsRight,
+        double? ClockLeft,
+        double? ContentLeft,
+        double? ContentRight);
+
+    private sealed record UiaCacheEntry(
+        RECT TaskbarRect,
+        RECT NotifyRect,
+        bool HasNotify,
+        DateTime ScannedAtUtc,
+        UiaMeasurements Measurements);
+
+    /// <summary>Drops cached taskbar measurements, e.g. after a display change.</summary>
+    public static void Invalidate()
+    {
+        lock (CacheLock) UiaCache.Clear();
+    }
+
+    internal static bool ShouldRescan(
+        DateTime nowUtc,
+        DateTime lastScanUtc,
+        bool geometryChanged,
+        TimeSpan rescanInterval)
+        => geometryChanged || nowUtc - lastScanUtc >= rescanInterval;
+
     public static Info? Get(int screenIndex = 0)
     {
         var screens = Screen.AllScreens;
@@ -46,17 +79,15 @@ public static class TaskbarPosition
 
         // Place the widget to the left of the notification area.
         var notify = FindWindowEx(taskbar, IntPtr.Zero, "TrayNotifyWnd", null);
-        int notifyLeft = tb.Right;
-        if (notify != IntPtr.Zero && GetWindowRect(notify, out var nr))
-            notifyLeft = nr.Left;
+        var notifyRect = default(RECT);
+        var hasNotify = notify != IntPtr.Zero && GetWindowRect(notify, out notifyRect);
 
         using var g = Graphics.FromHwnd(taskbar);
         var dpi = g.DpiX / 96.0;
-        var widgetsRight = TryGetLeftWidgetsRight(taskbar, tb, dpi);
-        var rightAnchorLeft = notify != IntPtr.Zero
-            ? notifyLeft / dpi
-            : TryGetClockLeft(taskbar, tb, dpi) ?? tb.Right / dpi;
-        var contentBounds = TryGetContentBounds(taskbar, tb, dpi, widgetsRight, rightAnchorLeft);
+        var measurements = GetUiaMeasurements(taskbar, tb, hasNotify, notifyRect, dpi);
+        var rightAnchorLeft = hasNotify
+            ? notifyRect.Left / dpi
+            : measurements.ClockLeft ?? tb.Right / dpi;
 
         return new Info(
             TaskbarTop:    tb.Top    / dpi,
@@ -65,9 +96,39 @@ public static class TaskbarPosition
             TaskbarRight:  tb.Right  / dpi,
             TaskbarHeight: (tb.Bottom - tb.Top) / dpi,
             NotifyLeft:    rightAnchorLeft,
-            WidgetsRight:  widgetsRight,
-            ContentLeft:   contentBounds.Left,
-            ContentRight:  contentBounds.Right);
+            WidgetsRight:  measurements.WidgetsRight,
+            ContentLeft:   measurements.ContentLeft,
+            ContentRight:  measurements.ContentRight);
+    }
+
+    private static UiaMeasurements GetUiaMeasurements(
+        IntPtr taskbar,
+        RECT taskbarRect,
+        bool hasNotify,
+        RECT notifyRect,
+        double dpi)
+    {
+        var nowUtc = DateTime.UtcNow;
+        lock (CacheLock)
+        {
+            if (UiaCache.TryGetValue(taskbar, out var entry))
+            {
+                var geometryChanged =
+                    !entry.TaskbarRect.Equals(taskbarRect) ||
+                    entry.HasNotify != hasNotify ||
+                    !entry.NotifyRect.Equals(notifyRect);
+                if (!ShouldRescan(nowUtc, entry.ScannedAtUtc, geometryChanged, UiaRescanInterval))
+                    return entry.Measurements;
+            }
+        }
+
+        var measurements = ScanUia(taskbar, taskbarRect, hasNotify, notifyRect, dpi);
+        lock (CacheLock)
+        {
+            UiaCache[taskbar] = new UiaCacheEntry(
+                taskbarRect, notifyRect, hasNotify, nowUtc, measurements);
+        }
+        return measurements;
     }
 
     private static IntPtr FindTaskbar(Rectangle targetBounds)
@@ -90,7 +151,16 @@ public static class TaskbarPosition
         return match;
     }
 
-    private static double? TryGetLeftWidgetsRight(IntPtr taskbar, RECT taskbarRect, double dpi)
+    // One UI Automation query collects every taskbar button rectangle; the
+    // three measurements are then derived from that in-memory list. The
+    // content pass needs the final widgets-right value, so the passes cannot
+    // be merged into a single loop.
+    private static UiaMeasurements ScanUia(
+        IntPtr taskbar,
+        RECT taskbarRect,
+        bool hasNotify,
+        RECT notifyRect,
+        double dpi)
     {
         try
         {
@@ -99,85 +169,62 @@ public static class TaskbarPosition
                 TreeScope.Descendants,
                 new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button));
 
-            double? right = null;
+            var rects = new List<System.Windows.Rect>(buttons.Count);
             foreach (AutomationElement button in buttons)
             {
                 var rect = button.Current.BoundingRectangle;
-                if (rect.IsEmpty ||
-                    rect.Left > taskbarRect.Left + 250 ||
-                    rect.Top < taskbarRect.Top ||
-                    rect.Bottom > taskbarRect.Bottom)
-                    continue;
-
-                right = right is null ? rect.Right / dpi : Math.Max(right.Value, rect.Right / dpi);
+                if (!rect.IsEmpty &&
+                    rect.Top >= taskbarRect.Top &&
+                    rect.Bottom <= taskbarRect.Bottom)
+                    rects.Add(rect);
             }
-            return right;
-        }
-        catch { return null; }
-    }
 
-    private static double? TryGetClockLeft(IntPtr taskbar, RECT taskbarRect, double dpi)
-    {
-        try
-        {
-            var root = AutomationElement.FromHandle(taskbar);
-            var buttons = root.FindAll(
-                TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button));
-
-            double? rightmostLeft = null;
-            double? rightmostEdge = null;
-            foreach (AutomationElement button in buttons)
+            // Right edge of the weather/widgets area at the taskbar's left end.
+            double? widgetsRight = null;
+            foreach (var rect in rects)
             {
-                var rect = button.Current.BoundingRectangle;
-                if (rect.IsEmpty ||
-                    rect.Top < taskbarRect.Top ||
-                    rect.Bottom > taskbarRect.Bottom ||
-                    rect.Left < taskbarRect.Left + (taskbarRect.Right - taskbarRect.Left) / 2.0)
-                    continue;
+                if (rect.Left > taskbarRect.Left + 250) continue;
+                widgetsRight = widgetsRight is null
+                    ? rect.Right / dpi
+                    : Math.Max(widgetsRight.Value, rect.Right / dpi);
+            }
 
-                if (rightmostEdge is null || rect.Right > rightmostEdge)
+            // Left edge of the rightmost button in the taskbar's right half.
+            double? clockLeft = null;
+            double? clockEdge = null;
+            var middle = taskbarRect.Left + (taskbarRect.Right - taskbarRect.Left) / 2.0;
+            foreach (var rect in rects)
+            {
+                if (rect.Left < middle) continue;
+                if (clockEdge is null || rect.Right > clockEdge)
                 {
-                    rightmostEdge = rect.Right;
-                    rightmostLeft = rect.Left / dpi;
+                    clockEdge = rect.Right;
+                    clockLeft = rect.Left / dpi;
                 }
             }
-            return rightmostLeft;
-        }
-        catch { }
-        return null;
-    }
 
-    private static (double? Left, double? Right) TryGetContentBounds(
-        IntPtr taskbar, RECT taskbarRect, double dpi, double? widgetsRight, double rightAnchorLeft)
-    {
-        try
-        {
-            var root = AutomationElement.FromHandle(taskbar);
-            var buttons = root.FindAll(
-                TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button));
-
+            // Bounds of the centered taskbar items between both anchors.
+            var rightAnchorLeft = hasNotify
+                ? notifyRect.Left / dpi
+                : clockLeft ?? taskbarRect.Right / dpi;
             var afterWidgets = (widgetsRight ?? taskbarRect.Left / dpi) + 1;
-            double? left = null;
-            double? right = null;
-            foreach (AutomationElement button in buttons)
+            double? contentLeft = null;
+            double? contentRight = null;
+            foreach (var rect in rects)
             {
-                var rect = button.Current.BoundingRectangle;
                 var rectLeft = rect.Left / dpi;
                 var rectRight = rect.Right / dpi;
-                if (rect.IsEmpty ||
-                    rect.Top < taskbarRect.Top ||
-                    rect.Bottom > taskbarRect.Bottom ||
-                    rectLeft <= afterWidgets ||
-                    rectRight >= rightAnchorLeft)
-                    continue;
-
-                left = left is null ? rectLeft : Math.Min(left.Value, rectLeft);
-                right = right is null ? rectRight : Math.Max(right.Value, rectRight);
+                if (rectLeft <= afterWidgets || rectRight >= rightAnchorLeft) continue;
+                contentLeft = contentLeft is null
+                    ? rectLeft
+                    : Math.Min(contentLeft.Value, rectLeft);
+                contentRight = contentRight is null
+                    ? rectRight
+                    : Math.Max(contentRight.Value, rectRight);
             }
-            return (left, right);
+
+            return new UiaMeasurements(widgetsRight, clockLeft, contentLeft, contentRight);
         }
-        catch { return (null, null); }
+        catch { return new UiaMeasurements(null, null, null, null); }
     }
 }
