@@ -40,6 +40,12 @@ public sealed class WindowsTokenSource : IClaudeCredentialSource
             if (json != null)
             {
                 var credential = ParseCredential(json, $"credential-manager:{target}");
+                if (credential != null) credential = credential with
+                {
+                    Origin = new ClaudeCredentialOrigin(
+                        ClaudeCredentialOriginKind.CredentialManager,
+                        target),
+                };
                 if (credential?.IsUsableAt(now) == true) return credential;
                 expiredCredential = PreferRefreshable(expiredCredential, credential);
             }
@@ -63,6 +69,12 @@ public sealed class WindowsTokenSource : IClaudeCredentialSource
             {
                 var json = await File.ReadAllTextAsync(path, ct);
                 var credential = ParseCredential(json, $"file:{Path.GetFileName(path)}");
+                if (credential != null) credential = credential with
+                {
+                    Origin = new ClaudeCredentialOrigin(
+                        ClaudeCredentialOriginKind.WindowsFile,
+                        Path.GetFullPath(path)),
+                };
                 if (credential?.IsUsableAt(now) == true) return credential;
                 expiredCredential = PreferRefreshable(expiredCredential, credential);
             }
@@ -78,6 +90,12 @@ public sealed class WindowsTokenSource : IClaudeCredentialSource
             {
                 var json = await File.ReadAllTextAsync(path, ct);
                 var credential = ParseCredential(json, "wsl-file");
+                if (credential != null) credential = credential with
+                {
+                    Origin = new ClaudeCredentialOrigin(
+                        ClaudeCredentialOriginKind.WslFile,
+                        path),
+                };
                 if (credential?.IsUsableAt(now) == true) return credential;
                 expiredCredential = PreferRefreshable(expiredCredential, credential);
             }
@@ -95,10 +113,14 @@ public sealed class WindowsTokenSource : IClaudeCredentialSource
     {
         if (candidate == null) return current;
         if (current == null) return candidate;
-        return string.IsNullOrWhiteSpace(current.RefreshToken) &&
-               !string.IsNullOrWhiteSpace(candidate.RefreshToken)
-            ? candidate
-            : current;
+        var currentRefreshable = !string.IsNullOrWhiteSpace(current.RefreshToken);
+        var candidateRefreshable = !string.IsNullOrWhiteSpace(candidate.RefreshToken);
+        if (!currentRefreshable && candidateRefreshable) return candidate;
+        if (currentRefreshable && candidateRefreshable &&
+            current.Origin.Kind != ClaudeCredentialOriginKind.WindowsFile &&
+            candidate.Origin.Kind == ClaudeCredentialOriginKind.WindowsFile)
+            return candidate;
+        return current;
     }
 
     private static IEnumerable<string> GetWslCredentialPaths()

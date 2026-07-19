@@ -25,7 +25,8 @@ public sealed class ClaudeUsageProviderTests
         var provider = new ClaudeUsageProvider(
             new StubCredentialSource(expired),
             api,
-            refresher);
+            refresher,
+            new StubCredentialStore());
 
         var result = await provider.FetchAsync();
 
@@ -49,7 +50,8 @@ public sealed class ClaudeUsageProviderTests
         var provider = new ClaudeUsageProvider(
             new StubCredentialSource(valid),
             api,
-            refresher);
+            refresher,
+            new StubCredentialStore());
 
         await provider.FetchAsync();
 
@@ -58,22 +60,129 @@ public sealed class ClaudeUsageProviderTests
         Assert.Equal(1, refresher.CallCount);
     }
 
+    [Fact]
+    public async Task FetchAsync_DoesNotRefresh_WhenCredentialCannotBePersisted()
+    {
+        var expired = new ClaudeCredential(
+            "expired",
+            "refresh",
+            DateTimeOffset.UtcNow.AddHours(-1),
+            [],
+            "credential-manager:test");
+        var refresher = new StubTokenRefresher(expired with
+        {
+            AccessToken = "fresh",
+            ExpiresAt = DateTimeOffset.UtcNow.AddHours(1),
+        });
+        var provider = new ClaudeUsageProvider(
+            new StubCredentialSource(expired),
+            new StubUsageApiClient(),
+            refresher,
+            new StubCredentialStore(canPersist: false));
+
+        var error = await Assert.ThrowsAsync<DomainError>(() => provider.FetchAsync());
+
+        Assert.Equal(DomainErrorKind.AnthropicUnauthorized, error.Kind);
+        Assert.Equal(0, refresher.CallCount);
+    }
+
+    [Fact]
+    public async Task FetchAsync_RefreshesOnlyOnce_WhenCallsOverlap()
+    {
+        var expired = new ClaudeCredential(
+            "expired",
+            "refresh",
+            DateTimeOffset.UtcNow.AddHours(-1),
+            [],
+            "test");
+        var refreshed = expired with
+        {
+            AccessToken = "fresh",
+            ExpiresAt = DateTimeOffset.UtcNow.AddHours(1),
+        };
+        var refresher = new StubTokenRefresher(refreshed, TimeSpan.FromMilliseconds(50));
+        var provider = new ClaudeUsageProvider(
+            new StubCredentialSource(expired),
+            new StubUsageApiClient(),
+            refresher,
+            new StubCredentialStore());
+
+        await Task.WhenAll(provider.FetchAsync(), provider.FetchAsync());
+
+        Assert.Equal(1, refresher.CallCount);
+    }
+
+    [Fact]
+    public async Task FetchAsync_RetainsRefreshedCredential_WhenPersistenceFails()
+    {
+        var expired = new ClaudeCredential(
+            "expired",
+            "refresh",
+            DateTimeOffset.UtcNow.AddHours(-1),
+            [],
+            "test");
+        var refreshed = expired with
+        {
+            AccessToken = "fresh",
+            RefreshToken = "rotated",
+            ExpiresAt = DateTimeOffset.UtcNow.AddHours(1),
+        };
+        var api = new StubUsageApiClient();
+        var refresher = new StubTokenRefresher(refreshed);
+        var store = new StubCredentialStore(
+            status: ClaudeCredentialPersistenceStatus.Failed);
+        var provider = new ClaudeUsageProvider(
+            new StubCredentialSource(expired),
+            api,
+            refresher,
+            store);
+
+        await provider.FetchAsync();
+        await provider.FetchAsync();
+
+        Assert.Equal(1, refresher.CallCount);
+        Assert.Equal("fresh", api.LastAccessToken);
+        Assert.True(store.CallCount >= 2);
+    }
+
     private sealed class StubCredentialSource(ClaudeCredential credential) : IClaudeCredentialSource
     {
         public Task<ClaudeCredential> ReadCredentialAsync(CancellationToken ct = default)
             => Task.FromResult(credential);
     }
 
-    private sealed class StubTokenRefresher(ClaudeCredential credential) : IClaudeTokenRefresher
+    private sealed class StubTokenRefresher(
+        ClaudeCredential credential,
+        TimeSpan? delay = null) : IClaudeTokenRefresher
     {
         public int CallCount { get; private set; }
 
-        public Task<ClaudeCredential> RefreshAsync(
+        public async Task<ClaudeCredential> RefreshAsync(
             ClaudeCredential current,
             CancellationToken ct = default)
         {
             CallCount++;
-            return Task.FromResult(credential);
+            if (delay.HasValue) await Task.Delay(delay.Value, ct);
+            return credential;
+        }
+    }
+
+    private sealed class StubCredentialStore(
+        bool canPersist = true,
+        ClaudeCredentialPersistenceStatus status =
+            ClaudeCredentialPersistenceStatus.Persisted) : IClaudeCredentialStore
+    {
+        public int CallCount { get; private set; }
+
+        public bool CanPersist(ClaudeCredential credential) => canPersist;
+
+        public Task<ClaudeCredentialPersistenceStatus> PersistRefreshedCredentialAsync(
+            ClaudeCredential original,
+            ClaudeCredential refreshed,
+            CancellationToken ct = default)
+        {
+            CallCount++;
+            return Task.FromResult(status);
         }
     }
 
