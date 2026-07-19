@@ -35,6 +35,8 @@ dotnet publish UsageBeacon\UsageBeacon.csproj -c Release -r win-x64 --self-conta
 
 Do not track outputs from `bin/`, `obj/`, or `publish/`.
 
+Use `publish/latest/UsageBeacon.exe` as the only persistent local executable. Build and test commands may create temporary `bin/` and `obj/` directories, but remove those directories and every non-`latest` publish directory after validation. Routine cleanup must never delete `publish/latest/`.
+
 ## Project Conventions
 
 Follow the global agent rules for formatting, naming, encoding, Git operations, and commit messages. Preserve nullable reference types, use the `Async` suffix for asynchronous methods, and follow the existing XAML layout. Repository documentation and source comments are written in English. User-facing text must use the localization resources; English and Japanese are currently supported with English as the neutral fallback language.

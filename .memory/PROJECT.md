@@ -15,6 +15,7 @@ Evidence: [`README.md`](../README.md), [`docs/NOTICE.md`](../docs/NOTICE.md), an
 
 - `UsageBeacon.sln` contains a .NET 8 WPF application and xUnit tests.
 - Application code lives in `UsageBeacon/`; tests live in `UsageBeacon.Tests/`.
+- `publish/latest/UsageBeacon.exe` is the only persistent local executable. Other publish directories and generated `bin/` and `obj/` trees are temporary validation output and must be removed after use.
 - Public documentation other than `README.md` belongs under `docs/`.
 - GitHub Issue Forms and pull request templates belong under `.github/`.
 - API and Windows integration code must remain outside views and follow the existing `Providers/`, `Services/`, and `Utilities/` boundaries.
