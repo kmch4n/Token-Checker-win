@@ -22,6 +22,11 @@
         <SolidColorBrush x:Key="DividerBrush"     Color="#20000000"/>
         <SolidColorBrush x:Key="AccentBrush"      Color="#0078D4"/>
         <SolidColorBrush x:Key="ErrorBg"          Color="#14FF9800"/>
+        <SolidColorBrush x:Key="ErrorText"        Color="#FF9800"/>
+        <SolidColorBrush x:Key="HoverBg"          Color="#18000000"/>
+        <SolidColorBrush x:Key="PressedBg"        Color="#28000000"/>
+        <SolidColorBrush x:Key="ComboBg"          Color="#14000000"/>
+        <SolidColorBrush x:Key="UsageTrackBrush"  Color="#404040"/>
 
         <Style x:Key="Title" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
@@ -57,7 +62,7 @@
                                 <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bg" Property="Background" Value="#28000000"/>
+                                <Setter TargetName="Bg" Property="Background" Value="{DynamicResource PressedBg}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -66,7 +71,7 @@
         </Style>
 
         <Style TargetType="ComboBox">
-            <Setter Property="Background"      Value="#14000000"/>
+            <Setter Property="Background"      Value="{DynamicResource ComboBg}"/>
             <Setter Property="Foreground"      Value="{DynamicResource SecondaryText}"/>
             <Setter Property="BorderBrush"     Value="{DynamicResource BorderBrush2}"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -158,10 +163,10 @@
                 </StackPanel>
 
                 <Border x:Name="ClaudeError" Visibility="Collapsed"
-                        Background="{StaticResource ErrorBg}"
+                        Background="{DynamicResource ErrorBg}"
                         CornerRadius="6" Padding="8,6" Margin="0,6,0,0">
                     <StackPanel>
-                        <TextBlock x:Name="ClaudeErrorTitle" Foreground="#FF9800"
+                        <TextBlock x:Name="ClaudeErrorTitle" Foreground="{DynamicResource ErrorText}"
                                    FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
                         <TextBlock x:Name="ClaudeErrorMsg"
                                    Foreground="{DynamicResource SecondaryText}"
@@ -208,10 +213,10 @@
                 </StackPanel>
 
                 <Border x:Name="CodexError" Visibility="Collapsed"
-                        Background="{StaticResource ErrorBg}"
+                        Background="{DynamicResource ErrorBg}"
                         CornerRadius="6" Padding="8,6" Margin="0,6,0,0">
                     <StackPanel>
-                        <TextBlock x:Name="CodexErrorTitle" Foreground="#FF9800"
+                        <TextBlock x:Name="CodexErrorTitle" Foreground="{DynamicResource ErrorText}"
                                    FontSize="11" FontWeight="SemiBold" Margin="0,0,0,3"/>
                         <TextBlock x:Name="CodexErrorMsg"
                                    Foreground="{DynamicResource SecondaryText}"
@@ -253,10 +258,15 @@
                     <Button x:Name="PlacementBtn" HorizontalAlignment="Right"
                             Style="{StaticResource LinkBtn}" Click="Placement_Click"/>
                 </Grid>
-                <Grid>
+                <Grid Margin="0,0,0,6">
                     <TextBlock x:Name="LanguageLabel" Style="{StaticResource Label}" VerticalAlignment="Center"/>
                     <ComboBox x:Name="LanguagePicker" HorizontalAlignment="Right" Width="130"
                               SelectionChanged="LanguagePicker_SelectionChanged"/>
+                </Grid>
+                <Grid>
+                    <TextBlock x:Name="ThemeLabel" Style="{StaticResource Label}" VerticalAlignment="Center"/>
+                    <ComboBox x:Name="ThemePicker" HorizontalAlignment="Right" Width="130"
+                              SelectionChanged="ThemePicker_SelectionChanged"/>
                 </Grid>
             </StackPanel>
 

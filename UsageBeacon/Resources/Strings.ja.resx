@@ -32,6 +32,10 @@
   <data name="SettingsMonitor" xml:space="preserve"><value>表示モニター</value></data>
   <data name="SettingsPosition" xml:space="preserve"><value>表示位置</value></data>
   <data name="SettingsLanguage" xml:space="preserve"><value>言語</value></data>
+  <data name="SettingsTheme" xml:space="preserve"><value>テーマ</value></data>
+  <data name="ThemeSystem" xml:space="preserve"><value>システム設定に従う</value></data>
+  <data name="ThemeLight" xml:space="preserve"><value>ライト</value></data>
+  <data name="ThemeDark" xml:space="preserve"><value>ダーク</value></data>
   <data name="MonitorSwitch" xml:space="preserve"><value>⇄ 切替</value></data>
   <data name="MonitorIndex" xml:space="preserve"><value>⇄ {0}/{1}</value></data>
   <data name="PlacementRight" xml:space="preserve"><value>右</value></data>

@@ -115,6 +115,7 @@ public partial class App : System.Windows.Application
 
             _vm.SnapshotChanged += UpdateTrayTooltip;
             LocalizationService.LanguageChanged += OnLanguageChanged;
+            Microsoft.Win32.SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
 
             // Check sign-in once after the first fetch, then show the popup.
             var loginChecked = false;
@@ -275,6 +276,16 @@ public partial class App : System.Windows.Application
         });
     }
 
+    private void OnUserPreferenceChanged(
+        object sender,
+        Microsoft.Win32.UserPreferenceChangedEventArgs e)
+    {
+        // Windows raises this on a worker thread for many preference kinds;
+        // ThemeService only repaints when the app theme actually flipped.
+        if (e.Category != Microsoft.Win32.UserPreferenceCategory.General) return;
+        Dispatcher.Invoke(ThemeService.NotifySystemThemeChanged);
+    }
+
     private void OnTrayClick(object? sender, MouseEventArgs e)
     {
         if (e.Button == MouseButtons.Left)
@@ -328,6 +339,7 @@ public partial class App : System.Windows.Application
     {
         _pollCts?.Cancel();
         LocalizationService.LanguageChanged -= OnLanguageChanged;
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         _tray?.Dispose();
         _trayIcon?.Dispose();
         if (_vm != null) await _vm.DisposeAsync();

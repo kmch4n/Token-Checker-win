@@ -3,7 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Height="6">
     <Grid x:Name="Root">
-        <Rectangle x:Name="Track" RadiusX="3" RadiusY="3" Fill="#404040"/>
+        <!-- Resolved from the hosting window's theme resources. -->
+        <Rectangle x:Name="Track" RadiusX="3" RadiusY="3"
+                   Fill="{DynamicResource UsageTrackBrush}"/>
         <Rectangle x:Name="Fill"  RadiusX="3" RadiusY="3"
                    HorizontalAlignment="Left" Width="0"/>
     </Grid>

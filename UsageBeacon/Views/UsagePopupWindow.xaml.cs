@@ -16,6 +16,7 @@ public partial class UsagePopupWindow : Window
     private bool _pickerReady;
     private bool _transparencyPickerReady;
     private bool _languagePickerReady;
+    private bool _themePickerReady;
     private int _monitorIndex;
     private int _monitorTotal = 1;
     private WidgetPlacement _placement;
@@ -28,10 +29,15 @@ public partial class UsagePopupWindow : Window
         _vm = vm;
         _placement = vm.WidgetPlacement;
         InitializeComponent();
-        ApplySystemAppearance();
+        ApplyTheme();
         StartupChk.IsChecked = vm.StartupEnabled;
         LocalizationService.LanguageChanged += OnLanguageChanged;
-        Closed += (_, _) => LocalizationService.LanguageChanged -= OnLanguageChanged;
+        ThemeService.ThemeChanged += OnThemeChanged;
+        Closed += (_, _) =>
+        {
+            LocalizationService.LanguageChanged -= OnLanguageChanged;
+            ThemeService.ThemeChanged -= OnThemeChanged;
+        };
         vm.PropertyChanged  += (_, _) => Dispatcher.Invoke(Refresh);
 
         ApplyLocalization();
@@ -40,6 +46,9 @@ public partial class UsagePopupWindow : Window
 
     private void OnLanguageChanged()
         => Dispatcher.Invoke(ApplyLocalization);
+
+    private void OnThemeChanged()
+        => Dispatcher.Invoke(ApplyTheme);
 
     private void ApplyLocalization()
     {
@@ -61,29 +70,43 @@ public partial class UsagePopupWindow : Window
         MonitorLabel.Text = LocalizationService.Get("SettingsMonitor");
         PositionLabel.Text = LocalizationService.Get("SettingsPosition");
         LanguageLabel.Text = LocalizationService.Get("SettingsLanguage");
+        ThemeLabel.Text = LocalizationService.Get("SettingsTheme");
         QuitBtn.Content = LocalizationService.Get("CommonExit");
 
         SetupIntervalPicker();
         SetupTransparencyPicker();
         SetupLanguagePicker();
+        SetupThemePicker();
         SyncClaudeIntegrationButton();
         UpdateMonitorLabel(_monitorIndex, _monitorTotal);
         UpdatePlacementLabel(_placement);
         Refresh();
     }
 
-    private void ApplySystemAppearance()
+    private void ApplyTheme()
     {
-        Resources["PrimaryText"]   = new SolidColorBrush(MediaColor.FromRgb(0x1A, 0x1A, 0x1A));
-        Resources["SecondaryText"] = new SolidColorBrush(MediaColor.FromRgb(0x45, 0x45, 0x45));
-        Resources["TertiaryText"]  = new SolidColorBrush(MediaColor.FromRgb(0x70, 0x70, 0x70));
-        Resources["BorderBrush2"]  = new SolidColorBrush(MediaColor.FromArgb(0x35, 0x00, 0x00, 0x00));
-        Resources["SurfaceBrush"] = new SolidColorBrush(
-            MediaColor.FromArgb(_vm.PopupTransparency.ToAlpha(), 0xFF, 0xFF, 0xFF));
-
-        var hover = new SolidColorBrush(MediaColor.FromArgb(0x18, 0x00, 0x00, 0x00));
-        Resources["HoverBg"] = hover;
+        var dark = ThemeService.IsDark;
+        Resources["PrimaryText"]     = Rgb(dark ? 0xF0F0F0u : 0x1A1A1Au);
+        Resources["SecondaryText"]   = Rgb(dark ? 0xC0C0C0u : 0x454545u);
+        Resources["TertiaryText"]    = Rgb(dark ? 0x909090u : 0x707070u);
+        Resources["BorderBrush2"]    = Argb(dark ? 0x35FFFFFFu : 0x35000000u);
+        Resources["DividerBrush"]    = Argb(dark ? 0x20FFFFFFu : 0x20000000u);
+        Resources["HoverBg"]         = Argb(dark ? 0x18FFFFFFu : 0x18000000u);
+        Resources["PressedBg"]       = Argb(dark ? 0x28FFFFFFu : 0x28000000u);
+        Resources["ComboBg"]         = Argb(dark ? 0x14FFFFFFu : 0x14000000u);
+        Resources["ErrorBg"]         = Argb(dark ? 0x22FF9800u : 0x14FF9800u);
+        Resources["ErrorText"]       = Rgb(dark ? 0xFFB74Du : 0xFF9800u);
+        Resources["UsageTrackBrush"] = Rgb(dark ? 0x3A3A3Au : 0x404040u);
+        var surface = dark ? (byte)0x20 : (byte)0xFF;
+        Resources["SurfaceBrush"] = new SolidColorBrush(MediaColor.FromArgb(
+            _vm.PopupTransparency.ToAlpha(), surface, surface, surface));
     }
+
+    private static SolidColorBrush Rgb(uint color) => new(MediaColor.FromRgb(
+        (byte)(color >> 16), (byte)(color >> 8), (byte)color));
+
+    private static SolidColorBrush Argb(uint color) => new(MediaColor.FromArgb(
+        (byte)(color >> 24), (byte)(color >> 16), (byte)(color >> 8), (byte)color));
 
     // View refresh helpers.
 
@@ -276,12 +299,36 @@ public partial class UsagePopupWindow : Window
     {
         if (!_transparencyPickerReady || TransparencyPicker.SelectedItem is not TransparencyItem item) return;
         _vm.PopupTransparency = item.Value;
-        ApplySystemAppearance();
+        ApplyTheme();
     }
 
     private sealed record TransparencyItem(PopupTransparency Value)
     {
         public string Label { get; } = LocalizedText.PopupTransparency(Value);
+    }
+
+    private void SetupThemePicker()
+    {
+        _themePickerReady = false;
+        ThemePicker.ItemsSource = AppThemeExtensions.All
+            .Select(t => new ThemeItem(t)).ToList();
+        ThemePicker.DisplayMemberPath = "Label";
+        var items = (IList<ThemeItem>?)ThemePicker.ItemsSource;
+        ThemePicker.SelectedItem = items?.FirstOrDefault(i => i.Value == _vm.AppTheme);
+        _themePickerReady = true;
+    }
+
+    private void ThemePicker_SelectionChanged(
+        object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_themePickerReady && ThemePicker.SelectedItem is ThemeItem item)
+            _vm.AppTheme = item.Value;
+    }
+
+    private sealed record ThemeItem(AppTheme Value)
+    {
+        public string Label { get; } = LocalizedText.AppTheme(Value);
     }
 
     private void SetupLanguagePicker()

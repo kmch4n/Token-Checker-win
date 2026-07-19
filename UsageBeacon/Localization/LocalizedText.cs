@@ -45,6 +45,13 @@ public static class LocalizedText
         _ => $"{transparency.ToPercent()}%",
     };
 
+    public static string AppTheme(AppTheme theme) => theme switch
+    {
+        Utilities.AppTheme.Light => LocalizationService.Get("ThemeLight"),
+        Utilities.AppTheme.Dark => LocalizationService.Get("ThemeDark"),
+        _ => LocalizationService.Get("ThemeSystem"),
+    };
+
     public static string ResetTime(DateTime resetsAt)
     {
         if (resetsAt == DateTime.MinValue) return LocalizationService.Get("ResetNoRecentUsage");
