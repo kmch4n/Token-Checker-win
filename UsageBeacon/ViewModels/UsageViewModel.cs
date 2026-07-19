@@ -18,6 +18,10 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
     private readonly IUsageProvider _claude;
     private readonly IUsageProvider _codex;
     private readonly AppSettingsStore _settingsStore;
+    private readonly string _claudeUsageCachePath;
+    private readonly string _codexUsageCachePath;
+    private readonly string _claudePollingStatePath;
+    private readonly string _claudeNativeUsagePath;
 
     private UsageSnapshot _snapshot = UsageSnapshot.Empty;
     private bool _isLoading;
@@ -145,8 +149,14 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
     public UsageViewModel(
         IUsageProvider? claude = null,
         IUsageProvider? codex = null,
-        AppSettingsStore? settingsStore = null)
+        AppSettingsStore? settingsStore = null,
+        string? dataDirectory = null)
     {
+        var directory = dataDirectory ?? AppDataPaths.DirectoryPath;
+        _claudeUsageCachePath = Path.Combine(directory, "claude-usage-cache.json");
+        _codexUsageCachePath = Path.Combine(directory, "codex-usage-cache.json");
+        _claudePollingStatePath = Path.Combine(directory, "claude-polling-state.json");
+        _claudeNativeUsagePath = Path.Combine(directory, "claude-native-usage.json");
         _settingsStore = settingsStore ?? new AppSettingsStore();
         var settings = _settingsStore.Load();
         _claude          = claude ?? new ClaudeUsageProvider();
@@ -161,7 +171,7 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
         try { StartupManager.MigrateLegacyRegistration(); } catch { }
         _startupEnabled  = StartupManager.IsEnabled;
         var claudeUsageCache = LoadClaudeUsageCache();
-        var nativeUsageCache = ClaudeNativeUsageStore.Load();
+        var nativeUsageCache = ClaudeNativeUsageStore.Load(_claudeNativeUsagePath);
         var latestClaudeUsage = claudeUsageCache;
         if (nativeUsageCache != null &&
             (latestClaudeUsage == null ||
@@ -232,7 +242,7 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
         try
         {
             var nowUtc = DateTime.UtcNow;
-            var nativeUsage = ClaudeNativeUsageStore.Load();
+            var nativeUsage = ClaudeNativeUsageStore.Load(_claudeNativeUsagePath);
             if (nativeUsage != null &&
                 (!_lastClaudeFetchedAtUtc.HasValue ||
                  nativeUsage.FetchedAtUtc > _lastClaudeFetchedAtUtc.Value))
@@ -342,14 +352,7 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
     private void Notify([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-    // ── Settings (JSON file in %AppData%\UsageBeacon) ───────────────────
-
-    private static readonly string ClaudeUsageCachePath = Path.Combine(
-        AppDataPaths.DirectoryPath, "claude-usage-cache.json");
-    private static readonly string CodexUsageCachePath = Path.Combine(
-        AppDataPaths.DirectoryPath, "codex-usage-cache.json");
-    private static readonly string ClaudePollingStatePath = Path.Combine(
-        AppDataPaths.DirectoryPath, "claude-polling-state.json");
+    // ── Settings (JSON files in the data directory, %AppData%\UsageBeacon by default) ──
 
     // Replace through a temporary file to avoid leaving a zero-byte cache after an interrupted write.
     private static void AtomicWrite(string path, string content)
@@ -391,12 +394,12 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
         catch { }
     }
 
-    private static UsageCacheEntry? LoadClaudeUsageCache()
+    private UsageCacheEntry? LoadClaudeUsageCache()
     {
         try
         {
-            if (!File.Exists(ClaudeUsageCachePath)) return null;
-            var json = File.ReadAllText(ClaudeUsageCachePath);
+            if (!File.Exists(_claudeUsageCachePath)) return null;
+            var json = File.ReadAllText(_claudeUsageCachePath);
             try
             {
                 var entry = JsonSerializer.Deserialize<UsageCacheEntry>(json);
@@ -415,43 +418,43 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
         catch { return null; }
     }
 
-    private static void SaveClaudeUsageCache(UsageCacheEntry entry)
+    private void SaveClaudeUsageCache(UsageCacheEntry entry)
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(ClaudeUsageCachePath)!);
-            AtomicWrite(ClaudeUsageCachePath, JsonSerializer.Serialize(entry));
+            Directory.CreateDirectory(Path.GetDirectoryName(_claudeUsageCachePath)!);
+            AtomicWrite(_claudeUsageCachePath, JsonSerializer.Serialize(entry));
         }
         catch { }
     }
 
-    private static ServiceUsage? LoadCodexUsageCache()
+    private ServiceUsage? LoadCodexUsageCache()
     {
         try
         {
-            return File.Exists(CodexUsageCachePath)
-                ? JsonSerializer.Deserialize<ServiceUsage>(File.ReadAllText(CodexUsageCachePath))
+            return File.Exists(_codexUsageCachePath)
+                ? JsonSerializer.Deserialize<ServiceUsage>(File.ReadAllText(_codexUsageCachePath))
                 : null;
         }
         catch { return null; }
     }
 
-    private static void SaveCodexUsageCache(ServiceUsage usage)
+    private void SaveCodexUsageCache(ServiceUsage usage)
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(CodexUsageCachePath)!);
-            AtomicWrite(CodexUsageCachePath, JsonSerializer.Serialize(usage));
+            Directory.CreateDirectory(Path.GetDirectoryName(_codexUsageCachePath)!);
+            AtomicWrite(_codexUsageCachePath, JsonSerializer.Serialize(usage));
         }
         catch { }
     }
 
-    private static ClaudePollingState? LoadClaudePollingState()
+    private ClaudePollingState? LoadClaudePollingState()
     {
         try
         {
-            return File.Exists(ClaudePollingStatePath)
-                ? JsonSerializer.Deserialize<ClaudePollingState>(File.ReadAllText(ClaudePollingStatePath))
+            return File.Exists(_claudePollingStatePath)
+                ? JsonSerializer.Deserialize<ClaudePollingState>(File.ReadAllText(_claudePollingStatePath))
                 : null;
         }
         catch { return null; }
@@ -461,8 +464,8 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(ClaudePollingStatePath)!);
-            AtomicWrite(ClaudePollingStatePath, JsonSerializer.Serialize(
+            Directory.CreateDirectory(Path.GetDirectoryName(_claudePollingStatePath)!);
+            AtomicWrite(_claudePollingStatePath, JsonSerializer.Serialize(
                 new ClaudePollingState
                 {
                     NextRequestUtc = _claudeCooldownUntilUtc,
