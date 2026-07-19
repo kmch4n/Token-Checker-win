@@ -1,10 +1,14 @@
 using UsageBeacon.Models;
 using UsageBeacon.Providers;
 using UsageBeacon.Services;
+using UsageBeacon.Utilities;
 using UsageBeacon.ViewModels;
 
 namespace UsageBeacon.Tests;
 
+// Shares a collection with ThemeServiceTests because the view model mutates
+// the process-global ThemeService state.
+[Collection("ThemeServiceState")]
 public sealed class UsageViewModelTests
 {
     [Fact]
@@ -72,6 +76,53 @@ public sealed class UsageViewModelTests
         Assert.Equal(0, claude.CallCount);
         Assert.Equal(0.42, vm.Snapshot.ClaudeUsage?.FiveHour?.Utilization);
         await vm.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task AppTheme_Set_PersistsToSettingsAndAppliesTheme()
+    {
+        using var directory = new TempDirectory();
+        ThemeService.SystemDarkOverride = () => false;
+        var vm = CreateViewModel(directory.Path, new StubUsageProvider());
+
+        try
+        {
+            vm.AppTheme = AppTheme.Dark;
+
+            Assert.True(ThemeService.IsDark);
+            var saved = new AppSettingsStore(
+                Path.Combine(directory.Path, "settings.json")).Load();
+            Assert.Equal("Dark", saved.AppTheme);
+        }
+        finally
+        {
+            ThemeService.SystemDarkOverride = null;
+            ThemeService.SetTheme(AppTheme.System);
+            await vm.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Constructor_LoadsPersistedAppTheme()
+    {
+        using var directory = new TempDirectory();
+        ThemeService.SystemDarkOverride = () => false;
+        File.WriteAllText(
+            Path.Combine(directory.Path, "settings.json"),
+            """{ "appTheme": "Dark" }""");
+        var vm = CreateViewModel(directory.Path, new StubUsageProvider());
+
+        try
+        {
+            Assert.Equal(AppTheme.Dark, vm.AppTheme);
+            Assert.True(ThemeService.IsDark);
+        }
+        finally
+        {
+            ThemeService.SystemDarkOverride = null;
+            ThemeService.SetTheme(AppTheme.System);
+            await vm.DisposeAsync();
+        }
     }
 
     private static void WritePollingState(

@@ -21,4 +21,7 @@ public sealed class AppSettings
 
     [JsonPropertyName("uiLanguage")]
     public string UiLanguage { get; init; } = "system";
+
+    [JsonPropertyName("appTheme")]
+    public string AppTheme { get; init; } = "System";
 }

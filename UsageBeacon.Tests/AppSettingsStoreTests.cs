@@ -34,6 +34,7 @@ public sealed class AppSettingsStoreTests
             Assert.Equal("DISPLAY2", settings.MonitorDeviceName);
             Assert.True(settings.LoginPrompted);
             Assert.Equal("system", settings.UiLanguage);
+            Assert.Equal("System", settings.AppTheme);
         }
         finally
         {
@@ -57,6 +58,7 @@ public sealed class AppSettingsStoreTests
                 MonitorDeviceName = "DISPLAY1",
                 LoginPrompted = true,
                 UiLanguage = "en",
+                AppTheme = "Dark",
             });
 
             var settings = store.Load();
@@ -64,7 +66,9 @@ public sealed class AppSettingsStoreTests
 
             Assert.Equal("en", settings.UiLanguage);
             Assert.Equal(600, settings.PollingInterval);
+            Assert.Equal("Dark", settings.AppTheme);
             Assert.Equal("en", document.RootElement.GetProperty("uiLanguage").GetString());
+            Assert.Equal("Dark", document.RootElement.GetProperty("appTheme").GetString());
         }
         finally
         {

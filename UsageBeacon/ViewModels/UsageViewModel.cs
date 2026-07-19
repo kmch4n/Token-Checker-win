@@ -32,6 +32,7 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
     private bool _startupEnabled;
     private bool _loginPrompted;
     private string _uiLanguage;
+    private AppTheme _appTheme;
     private DateTime _claudeCooldownUntilUtc;
     private ServiceUsage? _lastClaudeUsage;
     private DateTime? _lastClaudeFetchedAtUtc;
@@ -144,6 +145,19 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
         }
     }
 
+    public AppTheme AppTheme
+    {
+        get => _appTheme;
+        set
+        {
+            if (_appTheme == value) return;
+            _appTheme = value;
+            ThemeService.SetTheme(value);
+            Notify();
+            SaveSettings();
+        }
+    }
+
     // ── Init ─────────────────────────────────────────────────────────────
 
     public UsageViewModel(
@@ -168,6 +182,8 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
         _loginPrompted = settings.LoginPrompted;
         _uiLanguage = LocalizationService.NormalizePreference(settings.UiLanguage);
         LocalizationService.SetLanguage(_uiLanguage);
+        _appTheme = ThemeService.NormalizePreference(settings.AppTheme);
+        ThemeService.SetTheme(_appTheme);
         try { StartupManager.MigrateLegacyRegistration(); } catch { }
         _startupEnabled  = StartupManager.IsEnabled;
         var claudeUsageCache = LoadClaudeUsageCache();
@@ -403,6 +419,7 @@ public sealed class UsageViewModel : INotifyPropertyChanged, IAsyncDisposable
                 MonitorDeviceName = _monitorDeviceName,
                 LoginPrompted = _loginPrompted,
                 UiLanguage = _uiLanguage,
+                AppTheme = _appTheme.ToString(),
             });
         }
         catch { }
