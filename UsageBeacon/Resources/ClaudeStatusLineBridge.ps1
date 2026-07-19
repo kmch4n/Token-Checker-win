@@ -65,14 +65,23 @@ if (-not [string]::IsNullOrWhiteSpace($originalCommand)) {
     $psi.FileName = $comSpec
     $psi.Arguments = "/d /s /c ""$originalCommand"""
     $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
     $psi.RedirectStandardInput = $true
     $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
     $psi.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
     $forward = [Diagnostics.Process]::Start($psi)
+    # Drain both pipes asynchronously before writing stdin so a chatty
+    # forwarded command cannot deadlock against a full pipe buffer.
+    $outputTask = $forward.StandardOutput.ReadToEndAsync()
+    $errorTask = $forward.StandardError.ReadToEndAsync()
     $forward.StandardInput.Write($inputJson)
     $forward.StandardInput.Close()
-    $forwardOutput = $forward.StandardOutput.ReadToEnd()
-    $forward.WaitForExit()
+    if (-not $forward.WaitForExit(10000)) {
+        try { $forward.Kill() } catch { }
+    }
+    $forwardOutput = $outputTask.GetAwaiter().GetResult()
+    $null = $errorTask.GetAwaiter().GetResult()
     if (-not [string]::IsNullOrWhiteSpace($forwardOutput)) {
         Write-Output $forwardOutput.TrimEnd()
     }
