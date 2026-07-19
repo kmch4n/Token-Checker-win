@@ -1,6 +1,6 @@
 # Current Repository Status
 
-Last verified: 2026-07-19
+Last verified: 2026-07-20
 
 ## Git and naming state
 
@@ -52,6 +52,16 @@ The fixes for GitHub issues #1 through #6 were validated on 2026-07-19:
 - New automated coverage: chained refresh from an expired pending credential, adoption of a replaced on-disk credential, polling-loop survival of subscriber exceptions, cooldown behavior with and without cached usage, executed status-line-bridge forwarding with a quoted path, Codex DTO parsing of missing `resetsAt` and fractional `usedPercent`, and the UI Automation rescan policy.
 
 Manual verification remains pending for: widget placement in every display mode after the UI Automation caching change, live status line forwarding with a real user-configured command, and a live expired-pending-credential renewal.
+
+## Dark mode validation
+
+The runtime light and dark theme support (D-009) was validated on 2026-07-20:
+
+- `dotnet test UsageBeacon.sln -c Debug`: 64 passed, 0 failed.
+- `dotnet build UsageBeacon.sln -c Debug` and `-c Release`: 0 warnings, 0 errors.
+- Automated coverage: theme preference normalization, `SetTheme` idempotency and event delivery, system-theme change resolution through the `SystemDarkOverride` seam, settings round-trip and legacy default of `appTheme`, and view-model persistence and constructor loading of the theme.
+
+Manual verification remains pending for: visual appearance of the popup and login window in both themes, live switching while the popup is open, following a Windows app-theme change while "System" is selected, and dark-theme contrast at high transparency levels.
 
 ## Local artifact cleanup
 

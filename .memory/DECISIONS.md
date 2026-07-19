@@ -72,3 +72,12 @@
 - Reason: The dynamic bar icon was unreliable and duplicated usage information already available in the taskbar widget, popup, and tray tooltip.
 - Consequences: The tray icon must continue to provide popup access, localized commands, usage tooltip text, and exit control, but it must not be regenerated when usage changes.
 - Evidence: [`UsageBeacon/App.xaml.cs`](../UsageBeacon/App.xaml.cs) and [`docs/CHANGELOG.md`](../docs/CHANGELOG.md).
+
+## D-009: Provide runtime light and dark themes via per-window brush overwrite
+
+- Date: 2026-07-20
+- Status: Active
+- Decision: Resolve the theme preference (System, Light, Dark) in a static `ThemeService` that mirrors `LocalizationService`, and re-theme each window by overwriting its own resource brushes from code instead of swapping application-level resource dictionaries.
+- Reason: The popup already composes its surface color with the transparency setting at runtime, which a static dictionary cannot express, and only the popup and login windows are themed. The System option reads `HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize\AppsUseLightTheme` (missing or unreadable values fall back to light) and re-resolves on `SystemEvents.UserPreferenceChanged` for the General category, raising `ThemeChanged` only when the effective appearance flips.
+- Consequences: The taskbar widget intentionally stays taskbar-blended dark and does not follow the app theme. Accent colors (`#0078D4`, Claude `#D07A42`, Codex `#7A8EE0`) and the semantic green/amber/red utilization colors are theme-invariant. `UsageBar` resolves `UsageTrackBrush` from the hosting window and must not declare a local default, because a nearer resource dictionary would shadow the theme-swapped brush. The default WPF ComboBox dropdown chrome remains system-colored; re-templating it was deferred. Tests that mutate the process-global `ThemeService` must share the `ThemeServiceState` xUnit collection and restore the System preference.
+- Evidence: [`UsageBeacon/Services/ThemeService.cs`](../UsageBeacon/Services/ThemeService.cs), [`UsageBeacon/Views/UsagePopupWindow.xaml.cs`](../UsageBeacon/Views/UsagePopupWindow.xaml.cs), and [`UsageBeacon/Views/LoginWindow.xaml.cs`](../UsageBeacon/Views/LoginWindow.xaml.cs).

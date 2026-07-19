@@ -11,6 +11,7 @@ All notable user-visible changes to UsageBeacon will be documented in this file.
 - Optional Claude Code status line integration for native five-hour and weekly usage data.
 - Automated tests for Claude OAuth refresh, usage responses, rate-limit cooldowns, credential expiry, and status line preservation.
 - Runtime-selectable English and Japanese interfaces with system-language detection and English fallback.
+- Runtime-selectable light and dark theme with a system-default option that follows the Windows app theme.
 
 ### Changed
 
