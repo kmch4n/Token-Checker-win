@@ -416,7 +416,10 @@ public sealed class CodexRateLimitsDto
         if (w == null) return null;
         return new RateLimit(
             Utilization: Math.Max(0, (w.UsedPercent ?? 0) / 100.0),
-            ResetsAt:    DateTimeOffset.FromUnixTimeSeconds(w.ResetsAt ?? 0).LocalDateTime);
+            // DateTime.MinValue is the UI sentinel for "no reset time reported".
+            ResetsAt:    w.ResetsAt is { } resetsAt
+                ? DateTimeOffset.FromUnixTimeSeconds(resetsAt).LocalDateTime
+                : DateTime.MinValue);
     }
 }
 
@@ -430,7 +433,9 @@ public sealed class RateLimitSnapshot
 
 public sealed class RateLimitWindow
 {
-    [JsonPropertyName("usedPercent")]        public int?  UsedPercent        { get; init; }
+    // The v2 app-server protocol serializes an integer today; accept fractional
+    // percentages as well because the core codex protocol defines them as f64.
+    [JsonPropertyName("usedPercent")]        public double? UsedPercent      { get; init; }
     [JsonPropertyName("windowDurationMins")] public long? WindowDurationMins { get; init; }
     [JsonPropertyName("resetsAt")]           public long? ResetsAt           { get; init; }
 }

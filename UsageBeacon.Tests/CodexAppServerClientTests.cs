@@ -1,10 +1,55 @@
 using System.Reflection;
+using System.Text.Json;
 using UsageBeacon.Services;
 
 namespace UsageBeacon.Tests;
 
 public sealed class CodexAppServerClientTests
 {
+    [Fact]
+    public void Window_UsesNoResetSentinel_WhenResetsAtIsMissing()
+    {
+        var dto = JsonSerializer.Deserialize<CodexRateLimitsDto>(
+            """
+            {
+                "rateLimits": {
+                    "primary": { "usedPercent": 40, "windowDurationMins": 10080 }
+                }
+            }
+            """)!;
+
+        var weekly = dto.WeeklyRateLimit();
+
+        Assert.NotNull(weekly);
+        Assert.Equal(DateTime.MinValue, weekly!.ResetsAt);
+        Assert.Equal(0.40, weekly.Utilization, precision: 10);
+    }
+
+    [Fact]
+    public void Window_AcceptsFractionalUsedPercent()
+    {
+        var dto = JsonSerializer.Deserialize<CodexRateLimitsDto>(
+            """
+            {
+                "rateLimits": {
+                    "primary": {
+                        "usedPercent": 12.5,
+                        "windowDurationMins": 300,
+                        "resetsAt": 1700000000
+                    }
+                }
+            }
+            """)!;
+
+        var fiveHour = dto.FiveHourRateLimit();
+
+        Assert.NotNull(fiveHour);
+        Assert.Equal(0.125, fiveHour!.Utilization, precision: 10);
+        Assert.Equal(
+            DateTimeOffset.FromUnixTimeSeconds(1700000000).LocalDateTime,
+            fiveHour.ResetsAt);
+    }
+
     [Fact]
     public void ResolveExecutable_PrefersNvmSymlinkOverPath()
     {
